@@ -10,8 +10,8 @@ import { createWriteStream } from "node:fs";
 
 import type { Prisma } from "@prisma/client";
 
-const reportRoutes: FastifyPluginAsync = async (fastify) => {
-    fastify.get("/reports", async (req, reply) => {
+const reportRoutesForUser: FastifyPluginAsync = async (fastify) => {
+    fastify.get("/user/reports", async (req, reply) => {
         const { page = "1", pageSize = "10" } = req.query as {
             page?: string;
             pageSize?: string;
@@ -270,4 +270,4 @@ const reportRoutes: FastifyPluginAsync = async (fastify) => {
     });
 };
 
-export default reportRoutes;
+export default reportRoutesForUser;
