@@ -12,38 +12,54 @@ import type { Prisma } from "@prisma/client";
 
 const reportRoutes: FastifyPluginAsync = async (fastify) => {
     fastify.get("/reports", async (req, reply) => {
-        const reports = await fastify.prisma.report.findMany({
-            select: {
-                id: true,
-                lat: true,
-                lng: true,
-                detail: true,
-                img: true,
-                category: {
-                    select: {
-                        name: true,
-                    }
-                },
-                histories: {
-                    orderBy: { changedAt: "desc" },
-                    select:{
-                        id: true,
-                        from: {
-                            select: { label: true }
+        const { page = "1", pageSize = "10" } = req.query as {
+            page?: string;
+            pageSize?: string;
+        };
+
+        const p = Math.max(1, Number(page) || 1); 
+        const ps = Math.min(50, Math.max(1, Number(pageSize) || 10)); 
+        const skip = (p - 1) * ps;
+
+        const [reports, total] = await fastify.prisma.$transaction([
+            fastify.prisma.report.findMany({
+                skip,
+                take: ps,
+                orderBy: { createdAt: "desc" },
+                select: {
+                    id: true,
+                    lat: true,
+                    lng: true,
+                    detail: true,
+                    img: true,
+                    category: {
+                        select: { name: true },
+                    },
+                    histories: {
+                        orderBy: { changedAt: "desc" },
+                        select: {
+                            id: true,
+                            from: { select: { label: true } },
+                            to: { select: { label: true } },
+                            note: true,
+                            changedBy: true,
+                            changedAt: true,
                         },
-                        to: {
-                            select: { label: true }
-                        },
-                        note: true,
-                        changedBy: true,
-                        changedAt: true,
-                    }
+                    },
+                    createdAt: true,
                 },
-                createdAt: true,
-            },
-            orderBy: { createdAt: "desc" },
+            }),
+            fastify.prisma.report.count(), 
+        ]);
+
+        return reply.send({
+            ok: true,
+            page: p,
+            pageSize: ps,
+            total,
+            totalPages: Math.ceil(total / ps),
+            items: reports,
         });
-        return { ok: true, reports };
     });
 
     fastify.post("/report", async (req, reply) => {
