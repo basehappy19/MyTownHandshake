@@ -26,7 +26,6 @@ const app: FastifyPluginAsync<AppOptions> = async (
                 options: opts,
             });
         },
-        { prefix: "/api" }
     );
 };
 
