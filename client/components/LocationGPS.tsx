@@ -61,7 +61,7 @@ export default function LocationGPS({ onChange, auto = true }: Props) {
                 ตำแหน่งที่เกิดเหตุ
             </label>
 
-            <div className="bg-gradient-to-br from-gray-50 to-blue-50 rounded-2xl p-6 border-2 border-gray-200">
+            <div className="bg-gradient-to-br from-gray-50 to-blue-50 rounded-2xl border-2 border-gray-200">
                 {status === 'success' && location ? (
                     <div className="space-y-4">
                         <div className="rounded-2xl overflow-hidden shadow-xl border-4 border-white">
@@ -74,16 +74,6 @@ export default function LocationGPS({ onChange, auto = true }: Props) {
                                 allowFullScreen
                                 src={`https://www.google.com/maps?q=${location.lat},${location.lng}&z=17&output=embed`}
                             />
-                        </div>
-                        <div className="flex items-center justify-between text-sm text-gray-700">
-                            <span>ละติจูด: {location.lat.toFixed(6)} | ลองจิจูด: {location.lng.toFixed(6)}</span>
-                            <button
-                                type="button"
-                                onClick={getLocation}
-                                className="px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-100"
-                            >
-                                รีเฟรชตำแหน่ง
-                            </button>
                         </div>
                     </div>
                 ) : (

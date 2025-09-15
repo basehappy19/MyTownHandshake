@@ -30,7 +30,6 @@ export default function OfficialReportForm() {
     })
 
     const detail = watch('detail', '')
-    const [preview, setPreview] = useState<string | null>(null)
 
     const handlePhoto = (file: File | null) => {
         setValue('photo', file, { shouldValidate: true })
@@ -62,7 +61,6 @@ export default function OfficialReportForm() {
         }
         alert('ส่งรายงานเรียบร้อยแล้ว เจ้าหน้าที่จะติดต่อกลับภายใน 24 ชั่วโมง')
         reset()
-        setPreview(null)
         setValue('photo', null, { shouldValidate: false })
         setUploadKey(k => k + 1)
     }
@@ -116,9 +114,6 @@ export default function OfficialReportForm() {
                         />
 
                         {errors.photo && <p className="text-xs text-red-500">{errors.photo.message}</p>}
-                        {preview && (
-                            <img src={preview} alt="หลักฐาน" className="w-48 h-48 object-cover rounded-xl border mt-2" />
-                        )}
                     </div>
 
                     {/* ตำแหน่ง */}

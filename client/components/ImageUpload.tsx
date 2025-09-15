@@ -1,5 +1,6 @@
 'use client'
 import { Camera, Upload, X } from 'lucide-react'
+import Image from 'next/image'
 import React, { useEffect, useRef, useState } from 'react'
 
 type Props = {
@@ -9,7 +10,6 @@ type Props = {
 
 export default function ImageUpload({ onChange, maxSizeMB = 10 }: Props) {
     const [image, setImage] = useState<string | null>(null)
-    const [file, setFile] = useState<File | null>(null)
 
     const [showCamera, setShowCamera] = useState(false)
     const videoRef = useRef<HTMLVideoElement>(null)
@@ -17,7 +17,6 @@ export default function ImageUpload({ onChange, maxSizeMB = 10 }: Props) {
     const fileInputRef = useRef<HTMLInputElement>(null)
 
     const emit = (next: File | null) => {
-        setFile(next)
         onChange?.(next ? [next] : [])
     }
 
@@ -46,7 +45,6 @@ export default function ImageUpload({ onChange, maxSizeMB = 10 }: Props) {
 
     useEffect(() => {
         return () => stopCamera()
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
     const dataURLtoFile = async (dataUrl: string, filename: string) => {
@@ -172,14 +170,15 @@ export default function ImageUpload({ onChange, maxSizeMB = 10 }: Props) {
 
             <canvas ref={canvasRef} className="hidden" />
 
-            {/* Preview เดี่ยว */}
             {image && (
                 <div className="space-y-4">
                     <h4 className="font-semibold text-gray-700">รูปภาพที่แนบ (1/1)</h4>
                     <div className="relative group inline-block">
-                        <img
+                        <Image
                             src={image}
                             alt="หลักฐาน"
+                            width={192}
+                            height={192}
                             className="w-48 h-48 object-cover rounded-xl border-2 border-gray-200 group-hover:border-blue-400 transition-colors shadow-md"
                         />
                         <button
