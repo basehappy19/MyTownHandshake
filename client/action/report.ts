@@ -1,41 +1,31 @@
 "use server";
 
-import { reportSchema } from "@/lib/reportSchema";
-import { z } from "zod";
-
-const serverFormSchema = reportSchema.extend({
-    lat: z.preprocess(
-        (v) => (v === "" || v == null ? undefined : Number(v)),
-        z.number().optional()
-    ),
-    lng: z.preprocess(
-        (v) => (v === "" || v == null ? undefined : Number(v)),
-        z.number().optional()
-    ),
-});
+import { revalidatePath } from "next/cache";
 
 export async function submitOfficialReport(formData: FormData) {
-    const data = {
-        detail: formData.get("detail"),
-        lat: formData.get("lat"),
-        lng: formData.get("lng"),
-    };
+    const detail = formData.get("detail");
+    const lat = formData.get("lat");
+    const lng = formData.get("lng");
 
-    const parsed = serverFormSchema.safeParse(data);
-    if (!parsed.success) {
-        return {
-            ok: false as const,
-            errors: parsed.error.flatten().fieldErrors,
-        };
-    }
+    const file = formData.get("img");
+    const img = file instanceof File && file.size > 0 ? file : null;
 
-    const files: File[] = [];
-    formData.getAll("photos").forEach((f) => {
-        if (f instanceof File && f.size > 0) files.push(f);
+    const fd = new FormData();
+    if (detail) fd.append("detail", String(detail));
+    if (lat) fd.append("lat", String(lat));
+    if (lng) fd.append("lng", String(lng));
+    if (img) fd.append("img", img);
+
+    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL;
+    const res = await fetch(`${apiBase}/report`, {
+        method: "POST",
+        body: fd,
     });
 
-    
-    await new Promise((r) => setTimeout(r, 600));
+    if (!res.ok) {
+        return { ok: false as const, error: "UPLOAD_FAILED" as const };
+    }
 
+    revalidatePath("/report");
     return { ok: true as const };
 }

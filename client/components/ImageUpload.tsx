@@ -8,16 +8,17 @@ type Props = {
 }
 
 export default function ImageUpload({ onChange, maxSizeMB = 10 }: Props) {
-    const [images, setImages] = useState<string[]>([])
-    const [files, setFiles] = useState<File[]>([])
+    const [image, setImage] = useState<string | null>(null)
+    const [file, setFile] = useState<File | null>(null)
+
     const [showCamera, setShowCamera] = useState(false)
     const videoRef = useRef<HTMLVideoElement>(null)
     const canvasRef = useRef<HTMLCanvasElement>(null)
     const fileInputRef = useRef<HTMLInputElement>(null)
 
-    const emit = (next: File[]) => {
-        setFiles(next)
-        onChange?.(next)
+    const emit = (next: File | null) => {
+        setFile(next)
+        onChange?.(next ? [next] : [])
     }
 
     const startCamera = async () => {
@@ -43,7 +44,6 @@ export default function ImageUpload({ onChange, maxSizeMB = 10 }: Props) {
         setShowCamera(false)
     }
 
-    // cleanup เมื่อคอมโพเนนต์ unmount
     useEffect(() => {
         return () => stopCamera()
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -67,46 +67,44 @@ export default function ImageUpload({ onChange, maxSizeMB = 10 }: Props) {
 
         ctx.drawImage(video, 0, 0)
         const imageData = canvas.toDataURL('image/jpeg', 0.8)
-        setImages(prev => [...prev, imageData])
 
-        // แปลงเป็นไฟล์แล้วส่งออก
-        const file = await dataURLtoFile(imageData, `camera_${Date.now()}.jpg`)
-        const next = [...files, file]
-        emit(next)
+        // แทนที่รูป/ไฟล์เดิม
+        setImage(imageData)
+        const f = await dataURLtoFile(imageData, `camera_${Date.now()}.jpg`)
+        emit(f)
 
         stopCamera()
     }
 
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const selected = Array.from(e.target.files || [])
-        const valid: File[] = []
-        selected.forEach(file => {
-            const isImage = file.type.startsWith('image/')
-            const underSize = file.size <= maxSizeMB * 1024 * 1024
-            if (isImage && underSize) {
-                valid.push(file)
-                // สำหรับ preview
-                const reader = new FileReader()
-                reader.onload = (e) => {
-                    const fr = e.currentTarget as FileReader
-                    if (fr.result) {
-                        setImages(prev => [...prev, fr.result as string])
-                    }
-                }
-                reader.readAsDataURL(file)
-            } else {
-                alert(`กรุณาเลือกไฟล์รูปภาพที่มีขนาดไม่เกิน ${maxSizeMB}MB`)
-            }
-        })
-        if (valid.length) emit([...files, ...valid])
-        // reset input เพื่อให้อัพโหลดไฟล์เดิมซ้ำได้ถ้าต้องการ
+        const first = selected[0]
+        if (!first) return
+
+        const isImage = first.type.startsWith('image/')
+        const underSize = first.size <= maxSizeMB * 1024 * 1024
+        if (!isImage || !underSize) {
+            alert(`กรุณาเลือกไฟล์รูปภาพที่มีขนาดไม่เกิน ${maxSizeMB}MB`)
+            e.currentTarget.value = ''
+            return
+        }
+
+        // preview + แทนที่ไฟล์เดิม
+        const reader = new FileReader()
+        reader.onload = (ev) => {
+            const fr = ev.currentTarget as FileReader
+            if (fr.result) setImage(fr.result as string)
+        }
+        reader.readAsDataURL(first)
+        emit(first)
+
+        // reset เพื่อให้อัปโหลดไฟล์เดิมซ้ำได้
         e.currentTarget.value = ''
     }
 
-    const removeImage = (index: number) => {
-        setImages(prev => prev.filter((_, i) => i !== index))
-        const nextFiles = files.filter((_, i) => i !== index)
-        emit(nextFiles)
+    const removeImage = () => {
+        setImage(null)
+        emit(null)
     }
 
     return (
@@ -114,9 +112,9 @@ export default function ImageUpload({ onChange, maxSizeMB = 10 }: Props) {
             <div className="flex items-center justify-between">
                 <label className="flex items-center text-sm font-bold text-gray-700">
                     <Camera className="h-4 w-4 mr-2 text-orange-500" />
-                    แนบหลักฐาน/รูปภาพ
+                    แนบหลักฐาน/รูปภาพ (ส่งได้รูปเดียว)
                 </label>
-                <span className="text-xs text-gray-500">รองรับไฟล์ JPG, PNG ขนาดไม่เกิน {maxSizeMB}MB</span>
+                <span className="text-xs text-gray-500">รองรับ JPG/PNG ≤ {maxSizeMB}MB</span>
             </div>
 
             <div className="flex flex-wrap gap-4">
@@ -138,12 +136,12 @@ export default function ImageUpload({ onChange, maxSizeMB = 10 }: Props) {
                 </button>
             </div>
 
+            {/* ✅ ไม่ใส่ multiple เพื่อบังคับไฟล์เดียว */}
             <input
                 type="file"
                 ref={fileInputRef}
                 onChange={handleFileUpload}
                 accept="image/jpeg,image/png,image/jpg"
-                multiple
                 className="hidden"
             />
 
@@ -174,26 +172,24 @@ export default function ImageUpload({ onChange, maxSizeMB = 10 }: Props) {
 
             <canvas ref={canvasRef} className="hidden" />
 
-            {/* Image Preview */}
-            {images.length > 0 && (
+            {/* Preview เดี่ยว */}
+            {image && (
                 <div className="space-y-4">
-                    <h4 className="font-semibold text-gray-700">รูปภาพที่แนบ ({images.length})</h4>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                        {images.map((image, index) => (
-                            <div key={index} className="relative group">
-                                <img src={image} alt={`หลักฐาน ${index + 1}`} className="w-full h-32 object-cover rounded-xl border-2 border-gray-200 group-hover:border-blue-400 transition-colors shadow-md" />
-                                <button
-                                    type="button"
-                                    onClick={() => removeImage(index)}
-                                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-2 opacity-0 group-hover:opacity-100 transition-all duration-200 shadow-lg hover:bg-red-600"
-                                >
-                                    <X className="h-4 w-4" />
-                                </button>
-                                <div className="absolute bottom-2 left-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded-md">
-                                    {index + 1}
-                                </div>
-                            </div>
-                        ))}
+                    <h4 className="font-semibold text-gray-700">รูปภาพที่แนบ (1/1)</h4>
+                    <div className="relative group inline-block">
+                        <img
+                            src={image}
+                            alt="หลักฐาน"
+                            className="w-48 h-48 object-cover rounded-xl border-2 border-gray-200 group-hover:border-blue-400 transition-colors shadow-md"
+                        />
+                        <button
+                            type="button"
+                            onClick={removeImage}
+                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-2 opacity-0 group-hover:opacity-100 transition-all duration-200 shadow-lg hover:bg-red-600"
+                            aria-label="ลบรูป"
+                        >
+                            <X className="h-4 w-4" />
+                        </button>
                     </div>
                 </div>
             )}

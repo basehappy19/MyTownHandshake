@@ -10,7 +10,7 @@ type FormValues = {
     detail: string
     lat?: number
     lng?: number
-    photos: File[]
+    photo: File | null
 }
 
 export default function OfficialReportForm() {
@@ -24,18 +24,17 @@ export default function OfficialReportForm() {
         watch,
         reset,
     } = useForm<FormValues>({
-        defaultValues: { detail: '', lat: undefined, lng: undefined, photos: [] },
+        defaultValues: { detail: '', lat: undefined, lng: undefined, photo: null },
         mode: 'onBlur',
         reValidateMode: 'onBlur',
     })
 
     const detail = watch('detail', '')
+    const [preview, setPreview] = useState<string | null>(null)
 
-    const [photos, setPhotos] = useState<File[]>([])
-    const handlePhotos = (files: File[]) => {
-        setPhotos(files)
-        setValue('photos', files, { shouldValidate: true })
-        if (files.length > 0) clearErrors('photos')
+    const handlePhoto = (file: File | null) => {
+        setValue('photo', file, { shouldValidate: true })
+        if (file) clearErrors('photo')
     }
 
     const handleLocChange = (loc: { lat?: number; lng?: number } | null) => {
@@ -43,10 +42,10 @@ export default function OfficialReportForm() {
         if (loc?.lng != null) setValue('lng', loc.lng, { shouldValidate: true })
         if (loc?.lat != null || loc?.lng != null) clearErrors(['lat', 'lng'])
     }
-
-    const onSubmit = (data: FormValues) => {
-        if (!photos.length) {
-            setError('photos', { type: 'manual', message: 'กรุณาแนบรูปอย่างน้อย 1 รูป' })
+    const [uploadKey, setUploadKey] = useState(0)
+    const onSubmit = async (data: FormValues) => {
+        if (!data.photo) {
+            setError('photo', { type: 'manual', message: 'กรุณาแนบรูป 1 รูป' })
             return
         }
 
@@ -54,18 +53,18 @@ export default function OfficialReportForm() {
         fd.append('detail', data.detail)
         if (data.lat != null) fd.append('lat', String(data.lat))
         if (data.lng != null) fd.append('lng', String(data.lng))
-        photos.forEach(f => fd.append('photos', f))
+        fd.append('img', data.photo)
 
-            ; (async () => {
-                const res = await submitOfficialReport(fd)
-                if (!res.ok) {
-                    alert('ส่งไม่สำเร็จ: กรุณาตรวจสอบข้อมูลอีกครั้ง')
-                    return
-                }
-                alert('ส่งรายงานเรียบร้อยแล้ว เจ้าหน้าที่จะติดต่อกลับภายใน 24 ชั่วโมง')
-                reset()
-                setPhotos([])
-            })()
+        const res = await submitOfficialReport(fd)
+        if (!res.ok) {
+            alert('ส่งไม่สำเร็จ: กรุณาตรวจสอบข้อมูลอีกครั้ง')
+            return
+        }
+        alert('ส่งรายงานเรียบร้อยแล้ว เจ้าหน้าที่จะติดต่อกลับภายใน 24 ชั่วโมง')
+        reset()
+        setPreview(null)
+        setValue('photo', null, { shouldValidate: false })
+        setUploadKey(k => k + 1)
     }
 
     return (
@@ -85,7 +84,6 @@ export default function OfficialReportForm() {
                 </div>
 
                 <form onSubmit={handleSubmit(onSubmit)} className="p-8 lg:p-12 space-y-8">
-                    {/* รายละเอียดเหตุการณ์ */}
                     <div className="space-y-2">
                         <label htmlFor="detail" className="flex items-center text-sm font-bold text-gray-700">
                             <FileText className="h-4 w-4 mr-2 text-blue-500" />
@@ -112,10 +110,18 @@ export default function OfficialReportForm() {
                     </div>
 
                     <div className="space-y-2">
-                        <ImageUpload onChange={handlePhotos} />
-                        {errors.photos && <p className="text-xs text-red-500">{errors.photos.message}</p>}
+                        <ImageUpload
+                            key={uploadKey}
+                            onChange={(files) => handlePhoto(files[0] ?? null)}
+                        />
+
+                        {errors.photo && <p className="text-xs text-red-500">{errors.photo.message}</p>}
+                        {preview && (
+                            <img src={preview} alt="หลักฐาน" className="w-48 h-48 object-cover rounded-xl border mt-2" />
+                        )}
                     </div>
 
+                    {/* ตำแหน่ง */}
                     <div className="space-y-1">
                         <LocationGPS onChange={handleLocChange} />
                         {(errors.lat || errors.lng) && (
@@ -124,13 +130,6 @@ export default function OfficialReportForm() {
                             </p>
                         )}
                     </div>
-
-                    {/* hidden inputs สำหรับ RHF rules ของ lat/lng (กรณีอยากบังคับ) */}
-                    {/* ตัวอย่าง: บังคับให้ต้องมี lat/lng */}
-                    {/* 
-          <input type="hidden" {...register('lat', { required: 'กรุณาอนุญาตตำแหน่ง' })} />
-          <input type="hidden" {...register('lng', { required: 'กรุณาอนุญาตตำแหน่ง' })} />
-          */}
 
                     {/* ปุ่มส่ง */}
                     <div className="pt-8 border-t-2 border-gray-200">
