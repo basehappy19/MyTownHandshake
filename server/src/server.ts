@@ -6,6 +6,7 @@ dotenv.config();
 async function start() {
     const server = Fastify({
         logger: {
+            level: "info",
             transport: {
                 target: "pino-pretty",
                 options: { colorize: true, translateTime: "SYS:standard" },

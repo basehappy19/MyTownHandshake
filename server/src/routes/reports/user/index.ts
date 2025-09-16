@@ -17,8 +17,8 @@ const reportRoutesForUser: FastifyPluginAsync = async (fastify) => {
             pageSize?: string;
         };
 
-        const p = Math.max(1, Number(page) || 1); 
-        const ps = Math.min(50, Math.max(1, Number(pageSize) || 10)); 
+        const p = Math.max(1, Number(page) || 1);
+        const ps = Math.min(50, Math.max(1, Number(pageSize) || 10));
         const skip = (p - 1) * ps;
 
         const [reports, total] = await fastify.prisma.$transaction([
@@ -49,7 +49,7 @@ const reportRoutesForUser: FastifyPluginAsync = async (fastify) => {
                     createdAt: true,
                 },
             }),
-            fastify.prisma.report.count(), 
+            fastify.prisma.report.count(),
         ]);
 
         return reply.send({
@@ -106,7 +106,19 @@ const reportRoutesForUser: FastifyPluginAsync = async (fastify) => {
             let mimetype: string | undefined;
             let device_id: string | undefined;
             let fileReceived = false;
-            console.log(req.body);
+
+            req.log.info(
+                {
+                    got: {
+                        lat: typeof lat === "number",
+                        lng: typeof lng === "number",
+                        detail: Boolean(detail),
+                        user_agent: Boolean(user_agent),
+                        device_id: Boolean(device_id),
+                    },
+                },
+                "payload summary"
+            );
             
             for await (const part of parts) {
                 try {
@@ -211,7 +223,7 @@ const reportRoutesForUser: FastifyPluginAsync = async (fastify) => {
                             detail: detail!,
                             img: storedName,
                             categoryId: 1,
-                            user_agent: (user_agent ?? ""),
+                            user_agent: user_agent ?? "",
                             device_id: device_id ?? "",
                         },
                         select: { id: true },
