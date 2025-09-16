@@ -12,6 +12,7 @@ import type { Prisma } from "@prisma/client";
 
 const reportRoutesForUser: FastifyPluginAsync = async (fastify) => {
     fastify.get("/user/reports", async (req, reply) => {
+        const { device_id } = req.query as { device_id?: string };
         const { page = "1", pageSize = "10" } = req.query as {
             page?: string;
             pageSize?: string;
@@ -21,8 +22,52 @@ const reportRoutesForUser: FastifyPluginAsync = async (fastify) => {
         const ps = Math.min(50, Math.max(1, Number(pageSize) || 10));
         const skip = (p - 1) * ps;
 
+
+        if (!device_id || typeof device_id !== "string" || !device_id.trim()) {
+            const [reports, total] = await fastify.prisma.$transaction([
+                fastify.prisma.report.findMany({
+                    skip,
+                    take: ps,
+                    orderBy: { createdAt: "desc" },
+                    select: {
+                        id: true,
+                        lat: true,
+                        lng: true,
+                        detail: true,
+                        img: true,
+                        category: {
+                            select: { name: true },
+                        },
+                        histories: {
+                            orderBy: { changedAt: "desc" },
+                            select: {
+                                id: true,
+                                from: { select: { label: true } },
+                                to: { select: { label: true } },
+                                note: true,
+                                changedBy: true,
+                                changedAt: true,
+                            },
+                        },
+                        createdAt: true,
+                    },
+                }),
+                fastify.prisma.report.count(),
+            ]);
+
+            return reply.send({
+                ok: true,
+                page: p,
+                pageSize: ps,
+                total,
+                totalPages: Math.ceil(total / ps),
+                items: reports,
+            });
+        }
+
         const [reports, total] = await fastify.prisma.$transaction([
             fastify.prisma.report.findMany({
+                where: { device_id: device_id },
                 skip,
                 take: ps,
                 orderBy: { createdAt: "desc" },
@@ -49,7 +94,9 @@ const reportRoutesForUser: FastifyPluginAsync = async (fastify) => {
                     createdAt: true,
                 },
             }),
-            fastify.prisma.report.count(),
+            fastify.prisma.report.count({
+                where: { device_id: device_id },
+            }),
         ]);
 
         return reply.send({
