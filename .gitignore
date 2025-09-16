@@ -43,4 +43,4 @@
 
 
 /server/uploads/*
-/server/dist
+/server/dist/*
