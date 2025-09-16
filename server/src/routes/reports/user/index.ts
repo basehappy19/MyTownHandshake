@@ -112,14 +112,14 @@ const reportRoutesForUser: FastifyPluginAsync = async (fastify) => {
                     got: {
                         lat: typeof lat === "number",
                         lng: typeof lng === "number",
-                        detail: Boolean(detail),
-                        user_agent: Boolean(user_agent),
-                        device_id: Boolean(device_id),
+                        detail: detail,
+                        user_agent: user_agent,
+                        device_id: device_id,
                     },
                 },
                 "payload summary"
             );
-            
+
             for await (const part of parts) {
                 try {
                     if (part.type === "file") {
