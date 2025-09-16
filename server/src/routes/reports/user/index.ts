@@ -106,7 +106,8 @@ const reportRoutesForUser: FastifyPluginAsync = async (fastify) => {
             let mimetype: string | undefined;
             let device_id: string | undefined;
             let fileReceived = false;
-
+            console.log(req.body);
+            
             for await (const part of parts) {
                 try {
                     if (part.type === "file") {
