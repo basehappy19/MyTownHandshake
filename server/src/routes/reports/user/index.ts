@@ -18,93 +18,57 @@ const reportRoutesForUser: FastifyPluginAsync = async (fastify) => {
             pageSize?: string;
         };
 
-        const p = Math.max(1, Number(page) || 1);
         const ps = Math.min(50, Math.max(1, Number(pageSize) || 10));
+        const where =
+            device_id && device_id.trim()
+                ? { device_id: device_id.trim() }
+                : {};
+
+        const total = await fastify.prisma.report.count({ where });
+
+        const totalPages = Math.ceil(total / ps);
+
+        const rawP = Number(page) || 1;
+        const p =
+            totalPages > 0
+                ? Math.min(totalPages, Math.max(1, rawP)) 
+                : 1;
+
         const skip = (p - 1) * ps;
 
-
-        if (!device_id || typeof device_id !== "string" || !device_id.trim()) {
-            const [reports, total] = await fastify.prisma.$transaction([
-                fastify.prisma.report.findMany({
-                    skip,
-                    take: ps,
-                    orderBy: { createdAt: "desc" },
+        const reports = await fastify.prisma.report.findMany({
+            where,
+            skip,
+            take: ps,
+            orderBy: { createdAt: "desc" },
+            select: {
+                id: true,
+                lat: true,
+                lng: true,
+                detail: true,
+                img: true,
+                category: { select: { name: true } },
+                histories: {
+                    orderBy: { changedAt: "desc" },
                     select: {
                         id: true,
-                        lat: true,
-                        lng: true,
-                        detail: true,
-                        img: true,
-                        category: {
-                            select: { name: true },
-                        },
-                        histories: {
-                            orderBy: { changedAt: "desc" },
-                            select: {
-                                id: true,
-                                from: { select: { label: true } },
-                                to: { select: { label: true } },
-                                note: true,
-                                changedBy: true,
-                                changedAt: true,
-                            },
-                        },
-                        createdAt: true,
+                        from: { select: { label: true } },
+                        to: { select: { label: true } },
+                        note: true,
+                        changedBy: true,
+                        changedAt: true,
                     },
-                }),
-                fastify.prisma.report.count(),
-            ]);
-
-            return reply.send({
-                ok: true,
-                page: p,
-                pageSize: ps,
-                total,
-                totalPages: Math.ceil(total / ps),
-                items: reports,
-            });
-        }
-
-        const [reports, total] = await fastify.prisma.$transaction([
-            fastify.prisma.report.findMany({
-                where: { device_id: device_id },
-                skip,
-                take: ps,
-                orderBy: { createdAt: "desc" },
-                select: {
-                    id: true,
-                    lat: true,
-                    lng: true,
-                    detail: true,
-                    img: true,
-                    category: {
-                        select: { name: true },
-                    },
-                    histories: {
-                        orderBy: { changedAt: "desc" },
-                        select: {
-                            id: true,
-                            from: { select: { label: true } },
-                            to: { select: { label: true } },
-                            note: true,
-                            changedBy: true,
-                            changedAt: true,
-                        },
-                    },
-                    createdAt: true,
                 },
-            }),
-            fastify.prisma.report.count({
-                where: { device_id: device_id },
-            }),
-        ]);
+                createdAt: true,
+            },
+        });
 
         return reply.send({
             ok: true,
             page: p,
             pageSize: ps,
             total,
-            totalPages: Math.ceil(total / ps),
+            totalPages,
             items: reports,
         });
     });
