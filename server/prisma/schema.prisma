@@ -21,13 +21,14 @@ model Status {
 }
 
 model Report {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  lat       Float
-  lng       Float
-  detail    String   @db.Text
-  img       String   @db.Text
-  meta      Json     @default("{}") @db.JsonB
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  lat        Float
+  lng        Float
+  detail     String   @db.Text
+  img        String   @db.Text
+  device_id  String   @default("") @db.Text
+  user_agent String   @default("") @map("user_agent") @db.Text
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
 
   histories ReportStatusHistory[]
 

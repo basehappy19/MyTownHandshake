@@ -66,8 +66,6 @@ const reportRoutesForUser: FastifyPluginAsync = async (fastify) => {
         const ALLOWED_MIME = new Set(["image/jpeg", "image/png", "image/webp"]);
         const UPLOADS_DIR = join(process.cwd(), "uploads", "reports");
 
-        type Json = Record<string, unknown>;
-
         function badRequest(reply: FastifyReply, msg: string) {
             return reply.code(400).send({ ok: false, error: msg });
         }
@@ -91,7 +89,6 @@ const reportRoutesForUser: FastifyPluginAsync = async (fastify) => {
         let tempFilePath: string | undefined;
 
         try {
-            // 1) ตรวจ Content-Type
             if (!req.isMultipart()) {
                 return badRequest(
                     reply,
@@ -99,15 +96,15 @@ const reportRoutesForUser: FastifyPluginAsync = async (fastify) => {
                 );
             }
 
-            // 2) อ่าน multipart: รับ field และไฟล์ชื่อ img
             const parts = req.parts();
 
             let lat: number | undefined;
             let lng: number | undefined;
             let detail: string | undefined;
-            let meta: Json = {};
+            let user_agent: string | undefined;
             let filename: string | undefined;
             let mimetype: string | undefined;
+            let device_id: string | undefined;
             let fileReceived = false;
 
             for await (const part of parts) {
@@ -170,16 +167,6 @@ const reportRoutesForUser: FastifyPluginAsync = async (fastify) => {
                             case "detail":
                                 if (val.trim()) detail = val.trim();
                                 break;
-                            case "meta":
-                                try {
-                                    meta = JSON.parse(val) as Json;
-                                } catch {
-                                    return badRequest(
-                                        reply,
-                                        "meta must be a JSON string"
-                                    );
-                                }
-                                break;
                         }
                     }
                 } catch (partError) {
@@ -193,7 +180,6 @@ const reportRoutesForUser: FastifyPluginAsync = async (fastify) => {
                 }
             }
 
-            // 3) ตรวจความถูกต้อง
             const errs: string[] = [];
             if (typeof lat !== "number") errs.push("lat");
             if (typeof lng !== "number") errs.push("lng");
@@ -212,14 +198,11 @@ const reportRoutesForUser: FastifyPluginAsync = async (fastify) => {
                 );
             }
 
-            // 4) ทำงานกับฐานข้อมูลผ่าน Prisma แทน pg
             const prisma = fastify.prisma;
 
             const storedName = tempFilePath ? basename(tempFilePath) : "";
-            // ใช้ทรานแซกชัน: สร้าง report -> หา status เริ่มต้น -> เขียน history
             const result = await prisma.$transaction(
                 async (tx: Prisma.TransactionClient) => {
-                    // 4.1) สร้างรายงาน
                     const report = await tx.report.create({
                         data: {
                             lat: lat!,
@@ -227,28 +210,17 @@ const reportRoutesForUser: FastifyPluginAsync = async (fastify) => {
                             detail: detail!,
                             img: storedName,
                             categoryId: 1,
-                            meta: (meta ?? {}) as Prisma.InputJsonValue,
+                            user_agent: (user_agent ?? ""),
+                            device_id: device_id ?? "",
                         },
                         select: { id: true },
                     });
 
-                    // 4.2) หา status เริ่มต้น
-                    // ถ้าสคีมาของคุณใช้ code = 'receive' (ตามตัวอย่างก่อนหน้า) ให้ใช้ 'receive'
-                    // ถ้าเดิมเคยใช้ 'open' ก็เปลี่ยนบรรทัดด้านล่างนี้เป็น 'open' ได้
-                    const startCode = "receive";
-                    const start = await tx.status.findFirst({
-                        where: { code: startCode },
-                        select: { id: true },
-                    });
-
-                    const toStatusId = start?.id ?? 1;
-
-                    // 4.3) เขียนประวัติสถานะ
                     await tx.reportStatusHistory.create({
                         data: {
                             reportId: report.id,
                             fromStatus: null,
-                            toStatus: toStatusId,
+                            toStatus: 1,
                             note: "created",
                         },
                     });
