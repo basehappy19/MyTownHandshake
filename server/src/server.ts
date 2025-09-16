@@ -3,15 +3,25 @@ import app, { AppOptions } from "./app";
 import dotenv from "dotenv";
 dotenv.config();
 
+const isProd = process.env.NODE_ENV === "production";
+
 async function start() {
     const server = Fastify({
-        logger: {
-            level: "info",
-            transport: {
-                target: "pino-pretty",
-                options: { colorize: true, translateTime: "SYS:standard" },
-            },
-        },
+        logger: isProd
+            ? {
+                  level: "info",
+              }
+            : {
+                  level: "debug",
+                  transport: {
+                      target: "pino-pretty",
+                      options: {
+                          colorize: true,
+                          translateTime: "SYS:standard",
+                          ignore: "pid,hostname",
+                      },
+                  },
+              },
     });
 
     const opts: AppOptions = {};
