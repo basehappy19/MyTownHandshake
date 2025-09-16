@@ -48,7 +48,8 @@ export default async function imagesRoutes(fastify: FastifyInstance) {
         const UPLOADS_DIR =
             process.env.UPLOADS_DIR ?? path.join(process.cwd(), "uploads");
         const REPORTS_DIR = path.join(UPLOADS_DIR, "reports");
-        const filePath = path.join(REPORTS_DIR, path.basename(r.img));
+
+        const filePath = path.join(REPORTS_DIR, reportId, path.basename(r.img));
 
         try {
             const stat = await fs.promises.stat(filePath);

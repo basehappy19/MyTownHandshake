@@ -1,5 +1,7 @@
 {
   "compilerOptions": {
+    "types": [],       
+    "typeRoots": ["./types", "./node_modules/@types"],
     "target": "ES2022",
     "module": "CommonJS",
     "lib": ["ES2022"],

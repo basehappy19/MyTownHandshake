@@ -1,7 +1,10 @@
 import { join } from "node:path";
 import AutoLoad, { AutoloadPluginOptions } from "@fastify/autoload";
-import { FastifyPluginAsync, FastifyServerOptions } from "fastify";
+import type { FastifyPluginAsync, FastifyServerOptions } from "fastify";
 import imagesRoutes from "./routes/static/serve";
+import fastifyJwt from "@fastify/jwt";
+import { authRoutes } from "./routes/auth/auth";
+import "dotenv/config";
 
 export interface AppOptions
     extends FastifyServerOptions,
@@ -9,24 +12,39 @@ export interface AppOptions
 
 const options: AppOptions = {};
 
-const app: FastifyPluginAsync<AppOptions> = async (
-    fastify,
-    opts
-): Promise<void> => {
-    void fastify.register(AutoLoad, {
+const app: FastifyPluginAsync<AppOptions> = async (fastify, opts) => {
+    await fastify.register(AutoLoad, {
         dir: join(__dirname, "plugins"),
         options: opts,
     });
+
+    await fastify.register(fastifyJwt, {
+        secret: process.env.JWT_SECRET!,
+        sign: { expiresIn: process.env.JWT_EXPIRES ?? "15m" },
+    });
+
+    fastify.decorate("authGuard", async (req: any, reply: any) => {
+        try {
+            await req.jwtVerify();
+        } catch {
+            return reply.code(401).send({ ok: false, error: "Unauthorized" });
+        }
+    });
+
     await fastify.register(imagesRoutes);
 
-    void fastify.register(
-        async (instance) => {
-            instance.register(AutoLoad, {
-                dir: join(__dirname, "routes"),
-                options: opts,
-            });
-        },
-    );
+    await fastify.register(authRoutes, { prefix: "/auth" });
+
+    await fastify.register(async (instance) => {
+        instance.addHook("preHandler", instance.authGuard);
+    });
+
+    await fastify.register(async (instance) => {
+        instance.register(AutoLoad, {
+            dir: join(__dirname, "routes"),
+            options: opts,
+        });
+    });
 };
 
 export default app;

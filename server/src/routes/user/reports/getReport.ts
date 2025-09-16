@@ -29,7 +29,6 @@ const getReportRoute: FastifyPluginAsync = async (fastify) => {
             take: ps,
             orderBy: { createdAt: "desc" },
             select: {
-                id: true,
                 lat: true,
                 lng: true,
                 detail: true,
@@ -38,7 +37,6 @@ const getReportRoute: FastifyPluginAsync = async (fastify) => {
                 histories: {
                     orderBy: { changedAt: "desc" },
                     select: {
-                        id: true,
                         from: { select: { label: true } },
                         to: { select: { label: true } },
                         note: true,

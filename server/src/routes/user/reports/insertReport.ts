@@ -1,17 +1,23 @@
 import { randomUUID } from "node:crypto";
-import { extname, join, basename } from "node:path";
-import { mkdir, access, unlink } from "node:fs/promises";
+import { extname, join, basename, isAbsolute } from "node:path";
+import { mkdir, access, unlink, rename } from "node:fs/promises";
 import { constants as fsConstants } from "node:fs";
 import { pipeline } from "node:stream/promises";
 import { createWriteStream } from "node:fs";
 import type { Prisma } from "@prisma/client";
-import { FastifyPluginAsync, FastifyReply } from "fastify";
+import type { FastifyPluginAsync, FastifyReply } from "fastify";
 import "@fastify/multipart";
 
 const insertReportRoute: FastifyPluginAsync = async (fastify) => {
     fastify.post("/report", async (req, reply) => {
         const ALLOWED_MIME = new Set(["image/jpeg", "image/png", "image/webp"]);
-        const UPLOADS_DIR = join(process.cwd(), "uploads", "reports");
+        const UPLOADS_DIR = process.env.UPLOADS_DIR;
+
+        if (!UPLOADS_DIR) {
+            throw new Error("UPLOADS_DIR is not configured");
+        }
+
+        const UPLOADS_BASE = join(UPLOADS_DIR, "reports");
 
         function badRequest(reply: FastifyReply, msg: string) {
             return reply.code(400).send({ ok: false, error: msg });
@@ -26,13 +32,14 @@ const insertReportRoute: FastifyPluginAsync = async (fastify) => {
             return ".bin";
         }
 
-        async function ensureUploadsDir() {
+        async function ensureDir(dir: string) {
             try {
-                await access(UPLOADS_DIR, fsConstants.F_OK);
+                await access(dir, fsConstants.F_OK);
             } catch {
-                await mkdir(UPLOADS_DIR, { recursive: true });
+                await mkdir(dir, { recursive: true });
             }
         }
+
         let tempFilePath: string | undefined;
 
         try {
@@ -49,10 +56,12 @@ const insertReportRoute: FastifyPluginAsync = async (fastify) => {
             let lng: number | undefined;
             let detail: string | undefined;
             let user_agent: string | undefined;
-            let filename: string | undefined;
-            let mimetype: string | undefined;
             let device_id: string | undefined;
             let fileReceived = false;
+            let uploadedOriginalName = "upload";
+            let uploadedMime = "application/octet-stream";
+
+            await ensureDir(UPLOADS_BASE);
 
             for await (const part of parts) {
                 try {
@@ -78,14 +87,15 @@ const insertReportRoute: FastifyPluginAsync = async (fastify) => {
                             );
                         }
 
-                        mimetype = part.mimetype;
-                        filename = part.filename ?? "upload";
+                        uploadedOriginalName = part.filename ?? "upload";
+                        uploadedMime = part.mimetype;
 
-                        const ext = pickExtension(filename, mimetype);
-                        const storedName = `${randomUUID()}${ext}`;
-                        tempFilePath = join(UPLOADS_DIR, storedName);
-
-                        await ensureUploadsDir();
+                        const ext = pickExtension(
+                            uploadedOriginalName,
+                            uploadedMime
+                        );
+                        const storedTempName = `${randomUUID()}${ext}`;
+                        tempFilePath = join(UPLOADS_BASE, storedTempName);
 
                         await pipeline(
                             part.file,
@@ -97,6 +107,7 @@ const insertReportRoute: FastifyPluginAsync = async (fastify) => {
                             typeof part.value === "string"
                                 ? part.value
                                 : String(part.value ?? "");
+                        
 
                         switch (part.fieldname) {
                             case "lat": {
@@ -122,12 +133,13 @@ const insertReportRoute: FastifyPluginAsync = async (fastify) => {
                                 break;
                         }
                     }
-                } catch (partError) {
-                    req.log.error({ err: partError }, "error processing part");
+                } catch (partError: any) {
                     if (part.type === "file" && tempFilePath) {
                         try {
                             await unlink(tempFilePath);
-                        } catch {}
+                        } catch (rmErr) {
+                            
+                        }
                     }
                     throw partError;
                 }
@@ -143,7 +155,8 @@ const insertReportRoute: FastifyPluginAsync = async (fastify) => {
                 if (tempFilePath) {
                     try {
                         await unlink(tempFilePath);
-                    } catch {}
+                    } catch (rmErr) {
+                    }
                 }
                 return badRequest(
                     reply,
@@ -151,45 +164,59 @@ const insertReportRoute: FastifyPluginAsync = async (fastify) => {
                 );
             }
 
-            const prisma = fastify.prisma;
+            const prisma = fastify.prisma!;
+            const tempName = basename(tempFilePath!);
 
-            const storedName = tempFilePath ? basename(tempFilePath) : "";
+            const created = await prisma.report.create({
+                data: {
+                    lat: lat!,
+                    lng: lng!,
+                    detail: detail!,
+                    img: "",
+                    categoryId: 1,
+                    user_agent: user_agent ?? "",
+                    device_id: device_id ?? "",
+                },
+                select: { id: true },
+            });
 
-            const result = await prisma.$transaction(
-                async (tx: Prisma.TransactionClient) => {
-                    const report = await tx.report.create({
-                        data: {
-                            lat: lat!,
-                            lng: lng!,
-                            detail: detail!,
-                            img: storedName,
-                            categoryId: 1,
-                            user_agent: user_agent ?? "",
-                            device_id: device_id ?? "",
-                        },
-                        select: { id: true },
-                    });
+            const reportId = created.id;
 
-                    await tx.reportStatusHistory.create({
-                        data: {
-                            reportId: report.id,
-                            fromStatus: null,
-                            toStatus: 1,
-                            note: "created",
-                        },
-                    });
+            const reportDir = join(UPLOADS_BASE, String(reportId));
+            await ensureDir(reportDir);
 
-                    return report.id;
-                }
-            );
+            const finalFileName = tempName;
+            const finalPath = join(reportDir, finalFileName);
+            await rename(tempFilePath!, finalPath);
+            tempFilePath = undefined;
 
-            return reply.code(201).send({ ok: true, id: result });
-        } catch (err) {
-            req.log.error({ err }, "report upload failed");
+            await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+                await tx.report.update({
+                    where: { id: reportId },
+                    data: { img: finalFileName },
+                });
+
+                await tx.reportStatusHistory.create({
+                    data: {
+                        reportId,
+                        imgBefore: null,
+                        imgAfter: finalFileName,
+                        finished: false,
+                        fromStatus: null,
+                        toStatus: 1,
+                        note: "created",
+                    },
+                });
+            });
+
+            return reply.code(201).send({ ok: true, id: reportId });
+        } catch (err: any) {
+
             if (tempFilePath) {
                 try {
                     await unlink(tempFilePath);
-                } catch {}
+                } catch (rmErr) {
+                }
             }
             return reply.code(500).send({ ok: false, error: "Internal error" });
         }

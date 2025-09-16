@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from "fastify";
-import reportRoutesForUser from "./reports/user";
-import reportRoutesForAdmin from "./reports/admin";
+import reportRoutesForUser from "./user/reports";
+import reportRoutesForAdmin from "./admin";
 
 const root: FastifyPluginAsync = async (fastify) => {
     fastify.get("/", async (req, reply) => {
