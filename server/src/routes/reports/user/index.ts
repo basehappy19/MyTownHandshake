@@ -107,19 +107,6 @@ const reportRoutesForUser: FastifyPluginAsync = async (fastify) => {
             let device_id: string | undefined;
             let fileReceived = false;
 
-            req.log.info(
-                {
-                    got: {
-                        lat: typeof lat === "number",
-                        lng: typeof lng === "number",
-                        detail: detail,
-                        user_agent: user_agent,
-                        device_id: device_id,
-                    },
-                },
-                "payload summary"
-            );
-
             for await (const part of parts) {
                 try {
                     if (part.type === "file") {
@@ -180,6 +167,12 @@ const reportRoutesForUser: FastifyPluginAsync = async (fastify) => {
                             case "detail":
                                 if (val.trim()) detail = val.trim();
                                 break;
+                            case "user_agent":
+                                if (val.trim()) user_agent = val.trim();
+                                break;
+                            case "device_id":
+                                if (val.trim()) device_id = val.trim();
+                                break;
                         }
                     }
                 } catch (partError) {
@@ -214,6 +207,7 @@ const reportRoutesForUser: FastifyPluginAsync = async (fastify) => {
             const prisma = fastify.prisma;
 
             const storedName = tempFilePath ? basename(tempFilePath) : "";
+
             const result = await prisma.$transaction(
                 async (tx: Prisma.TransactionClient) => {
                     const report = await tx.report.create({
