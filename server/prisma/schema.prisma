@@ -78,7 +78,7 @@ model User {
   roleId      Int      @default(1) @map("role_id")
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
-  Role        Role     @relation(fields: [roleId], references: [id])
+  role        Role     @relation(fields: [roleId], references: [id])
 
   @@map("users")
 }

@@ -5,6 +5,7 @@ import imagesRoutes from "./routes/static/serve";
 import fastifyJwt from "@fastify/jwt";
 import { authRoutes } from "./routes/auth/auth";
 import "dotenv/config";
+import { tokenRoutes } from "./routes/auth/token";
 
 export interface AppOptions
     extends FastifyServerOptions,
@@ -34,6 +35,7 @@ const app: FastifyPluginAsync<AppOptions> = async (fastify, opts) => {
     await fastify.register(imagesRoutes);
 
     await fastify.register(authRoutes, { prefix: "/auth" });
+    await fastify.register(tokenRoutes, { prefix: "/auth" });
 
     await fastify.register(async (instance) => {
         instance.addHook("preHandler", instance.authGuard);
