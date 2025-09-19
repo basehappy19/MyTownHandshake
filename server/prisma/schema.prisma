@@ -1,0 +1,103 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Status {
+  id         Int     @id @db.SmallInt
+  code       String  @unique
+  label      String
+  sort_order Int     @default(0) @map("sort_order") @db.SmallInt
+  is_active  Boolean @default(true) @map("is_active")
+
+  from_histories ReportStatusHistory[] @relation("FromStatus")
+  to_histories   ReportStatusHistory[] @relation("ToStatus")
+
+  @@map("statuses")
+}
+
+model Report {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  lat        Float
+  lng        Float
+  detail     String   @db.Text
+  img        String   @db.Text
+  device_id  String   @default("") @db.Text
+  user_agent String   @default("") @map("user_agent") @db.Text
+  created_at DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  histories ReportStatusHistory[]
+
+  category_id Int
+  category    Category @relation(fields: [category_id], references: [id])
+
+  @@map("reports_problem")
+}
+
+model Category {
+  id         Int      @id @default(autoincrement())
+  name       String   @unique
+  created_at DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updated_at DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  reports    Report[]
+
+  @@map("categories")
+}
+
+model ReportStatusHistory {
+  id          Int       @id @default(autoincrement())
+  report_id   String    @map("report_id") @db.Uuid
+  from_status Int?      @map("from_status") @db.SmallInt
+  to_status   Int       @map("to_status") @db.SmallInt
+  changed_at  DateTime  @default(now()) @map("changed_at") @db.Timestamptz
+  changed_by  String?   @map("changed_by")
+  img_before  String?   @map("img_before") @db.Text
+  img_after   String?   @map("img_after") @db.Text
+  finished    Boolean   @default(false)
+  finished_at DateTime? @map("finished_at") @db.Timestamptz
+  note        String?
+
+  report Report  @relation(fields: [report_id], references: [id], onDelete: Cascade)
+  from   Status? @relation("FromStatus", fields: [from_status], references: [id])
+  to     Status  @relation("ToStatus", fields: [to_status], references: [id])
+
+  @@index([report_id, changed_at], name: "idx_rsh_report_id_changed_at")
+  @@map("report_status_history")
+}
+
+model User {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email       String?  @unique
+  username    String   @unique
+  password    String
+  displayName String?
+  role_id     Int      @default(1) @map("role_id")
+  created_at  DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updated_at  DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  role        Role     @relation(fields: [role_id], references: [id])
+
+  @@map("users")
+}
+
+model Role {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  created_at  DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updated_at  DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  users User[]
+
+  @@map("roles")
+}
