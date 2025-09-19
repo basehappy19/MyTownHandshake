@@ -1,6 +1,8 @@
 /server/node_modules
 /server/.env
 
+/server_bak
+
 /client/node_modules
 /client/.env
 
