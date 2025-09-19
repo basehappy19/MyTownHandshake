@@ -40,6 +40,7 @@ const app: FastifyPluginAsync<AppOptions> = async (fastify, opts) => {
     await fastify.register(async (instance) => {
         instance.addHook("preHandler", instance.authGuard);
     });
+    
 
     await fastify.register(async (instance) => {
         instance.register(AutoLoad, {
@@ -47,6 +48,7 @@ const app: FastifyPluginAsync<AppOptions> = async (fastify, opts) => {
             options: opts,
         });
     });
+    
 };
 
 export default app;

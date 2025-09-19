@@ -1,5 +1,6 @@
 import Fastify from "fastify";
-import app, { AppOptions } from "./app";
+import app from "./app";
+import type { AppOptions } from "./app";
 import dotenv from "dotenv";
 dotenv.config();
 
