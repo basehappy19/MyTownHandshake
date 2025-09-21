@@ -3,6 +3,11 @@
 
 /server_bak
 
+/server_fastify/node_modules
+/server_fastify/.env
+/server_fastify/dist
+/server_fastify/.env
+
 /client/node_modules
 /client/.env
 
