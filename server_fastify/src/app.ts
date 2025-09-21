@@ -3,6 +3,7 @@ import AutoLoad, { AutoloadPluginOptions } from "@fastify/autoload";
 import type { FastifyPluginAsync, FastifyServerOptions } from "fastify";
 import imagesRoutes from "./routes/static/serve";
 import "dotenv/config";
+import authRoutes from "./routes/auth/authRoutes";
 
 export interface AppOptions
     extends FastifyServerOptions,
@@ -17,6 +18,7 @@ const app: FastifyPluginAsync<AppOptions> = async (fastify, opts) => {
     });
 
     await fastify.register(imagesRoutes);
+    await fastify.register(authRoutes)
 
     await fastify.register(async (instance) => {
         instance.register(AutoLoad, {
