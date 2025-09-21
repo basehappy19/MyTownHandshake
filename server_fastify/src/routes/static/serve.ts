@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import { Prisma } from "@prisma/client";
 import path from "path";
 import fs from "fs";
 import { pipeline } from "stream/promises";
@@ -34,31 +35,46 @@ export default async function imagesRoutes(fastify: FastifyInstance) {
                 .send({ error: "Invalid reportId (must be UUID)" });
         }
 
-        const r = await fastify.prisma.report.findUnique({
-            where: { id: reportId },
-            select: { img: true },
-        });
-
-        if (!r?.img) {
-            return reply
-                .code(404)
-                .send({ message: "Report or image not found" });
-        }
-
-        const UPLOADS_DIR =
-            process.env.UPLOADS_DIR ?? path.join(process.cwd(), "uploads");
-        const REPORTS_DIR = path.join(UPLOADS_DIR, "reports");
-
-        const filePath = path.join(REPORTS_DIR, reportId, path.basename(r.img));
-
         try {
-            const stat = await fs.promises.stat(filePath);
+            const r = await fastify.prisma.$transaction(
+                async (tx: Prisma.TransactionClient) => {
+                    // อ่านเฉพาะฟิลด์ที่ต้องใช้
+                    return tx.report.findUnique({
+                        where: { id: reportId },
+                        select: { img: true },
+                    });
+                }
+            );
+
+            if (!r?.img) {
+                return reply
+                    .code(404)
+                    .send({ message: "Report or image not found" });
+            }
+
+            const UPLOADS_DIR =
+                process.env.UPLOADS_DIR ?? path.join(process.cwd(), "uploads");
+            const REPORTS_DIR = path.join(UPLOADS_DIR, "reports");
+            const filePath = path.join(
+                REPORTS_DIR,
+                reportId,
+                path.basename(r.img)
+            );
+
+            const stat = await fs.promises.stat(filePath).catch(() => null);
+            if (!stat) {
+                return reply.code(404).send({ message: "File not found" });
+            }
+
             reply.header("Content-Type", guessContentType(filePath));
             reply.header("Content-Length", String(stat.size));
             reply.header("Cache-Control", "public, max-age=3600");
+
             await pipeline(fs.createReadStream(filePath), reply.raw);
-        } catch {
-            return reply.code(404).send({ message: "File not found" });
+            return;
+        } catch (err) {
+            req.log.error({ err }, "serve report image failed");
+            return reply.code(500).send({ message: "Internal error" });
         }
     });
 }

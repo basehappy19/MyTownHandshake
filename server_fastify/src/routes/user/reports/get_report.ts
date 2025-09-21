@@ -34,6 +34,7 @@ const getReportRoute: FastifyPluginAsync = async (fastify) => {
                     take: ps,
                     orderBy: { created_at: "desc" },
                     select: {
+                        id: true,
                         lat: true,
                         lng: true,
                         detail: true,
