@@ -35,8 +35,6 @@ const getReportRoute: FastifyPluginAsync = async (fastify) => {
                     orderBy: { created_at: "desc" },
                     select: {
                         id: true,
-                        lat: true,
-                        lng: true,
                         detail: true,
                         img: true,
                         category: { select: { name: true } },
@@ -52,6 +50,7 @@ const getReportRoute: FastifyPluginAsync = async (fastify) => {
                                 finished: true,
                             },
                         },
+                        address: true,
                         responsible: { select: { display_name: true } },
                         created_at: true,
                     },

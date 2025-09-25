@@ -28,14 +28,15 @@ model Status {
 
 model Report {
   id         String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  lat        Float
-  lng        Float
   detail     String                @db.Text
   img        String                @db.Text
   device_id  String                @default("") @db.Text
   user_agent String                @default("") @map("user_agent") @db.Text
   created_at DateTime              @default(now()) @map("created_at") @db.Timestamptz
   histories  ReportStatusHistory[]
+
+  address_id String        @unique @db.Uuid
+  address    ReportAddress @relation(fields: [address_id], references: [id])
 
   category_id Int
   category    Category @relation(fields: [category_id], references: [id])
@@ -44,6 +45,28 @@ model Report {
   responsible    User?   @relation(fields: [responsible_id], references: [id])
 
   @@map("reports_problem")
+}
+
+model ReportAddress {
+  id                              String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  lat                             Float
+  lng                             Float
+  address_full                    String?
+  address_country                 String?
+  address_state                   String?
+  address_county                  String?
+  address_city                    String?
+  address_town_borough            String?
+  address_village_suburb          String?
+  address_neighbourhood           String?
+  address_any_settlement          String?
+  address_major_streets           String?
+  address_major_and_minor_streets String?
+  address_building                String?
+
+  report Report?
+
+  @@map("report_address")
 }
 
 model Category {
@@ -78,15 +101,15 @@ model ReportStatusHistory {
 }
 
 model User {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  email       String?  @unique
-  username    String   @unique
-  password    String
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email        String?  @unique
+  username     String   @unique
+  password     String
   display_name String?
-  role_id     Int      @default(1) @map("role_id")
-  created_at  DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updated_at  DateTime @updatedAt @map("updated_at") @db.Timestamptz
-  role        Role     @relation(fields: [role_id], references: [id])
+  role_id      Int      @default(1) @map("role_id")
+  created_at   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updated_at   DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  role         Role     @relation(fields: [role_id], references: [id])
 
   reports_responsible Report[]
 

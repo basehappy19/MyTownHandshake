@@ -6,41 +6,41 @@ import { pipeline } from "node:stream/promises";
 import { createWriteStream, createReadStream } from "node:fs";
 import type { Prisma } from "@prisma/client";
 import type { FastifyPluginAsync, FastifyReply } from "fastify";
+import { reverseGeocode } from "../../../functions/reverseGeoCode";
+
+async function ensureDir(dir: string) {
+    try {
+        await access(dir, fsConstants.F_OK);
+    } catch {
+        await mkdir(dir, { recursive: true });
+    }
+}
+
+// helper: pickExtension
+function pickExtension(filename: string | undefined, mimetype: string) {
+    const e = filename ? extname(filename).toLowerCase() : "";
+    if (e) return e;
+    if (mimetype === "image/jpeg") return ".jpg";
+    if (mimetype === "image/png") return ".png";
+    if (mimetype === "image/webp") return ".webp";
+    return ".bin";
+}
+
+// helper: safe move (rename with EXDEV fallback)
+async function safeMove(src: string, dest: string) {
+    try {
+        await rename(src, dest);
+    } catch (e: any) {
+        if (e?.code === "EXDEV") {
+            await pipeline(createReadStream(src), createWriteStream(dest));
+            await unlink(src).catch(() => {});
+        } else {
+            throw e;
+        }
+    }
+}
 
 const insertReportRoute: FastifyPluginAsync = async (fastify) => {
-    // helper: ensureDir
-    async function ensureDir(dir: string) {
-        try {
-            await access(dir, fsConstants.F_OK);
-        } catch {
-            await mkdir(dir, { recursive: true });
-        }
-    }
-
-    // helper: pickExtension
-    function pickExtension(filename: string | undefined, mimetype: string) {
-        const e = filename ? extname(filename).toLowerCase() : "";
-        if (e) return e;
-        if (mimetype === "image/jpeg") return ".jpg";
-        if (mimetype === "image/png") return ".png";
-        if (mimetype === "image/webp") return ".webp";
-        return ".bin";
-    }
-
-    // helper: safe move (rename with EXDEV fallback)
-    async function safeMove(src: string, dest: string) {
-        try {
-            await rename(src, dest);
-        } catch (e: any) {
-            if (e?.code === "EXDEV") {
-                await pipeline(createReadStream(src), createWriteStream(dest));
-                await unlink(src).catch(() => {});
-            } else {
-                throw e;
-            }
-        }
-    }
-
     fastify.post("/report", async (req, reply) => {
         const ALLOWED_MIME = new Set(["image/jpeg", "image/png", "image/webp"]);
         const UPLOADS_DIR = process.env.UPLOADS_DIR;
@@ -170,27 +170,76 @@ const insertReportRoute: FastifyPluginAsync = async (fastify) => {
             const prisma = fastify.prisma!;
             const tempName = basename(tempFilePath!);
 
-            // ── TX#1: สร้าง report (ยังไม่ใส่ img) ─────────────────────────────────
-            const reportId = await prisma.$transaction(
+            // เรียก Nominatim เพื่อเตรียม payload ของที่อยู่
+            let addrPayload: Prisma.ReportAddressUncheckedCreateInput;
+            try {
+                const g = await reverseGeocode(lat!, lng!);
+                addrPayload = {
+                    lat: lat!,
+                    lng: lng!,
+                    address_full: g.address_full,
+                    address_country: g.address_country,
+                    address_state: g.address_state,
+                    address_county: g.address_county,
+                    address_city: g.address_city,
+                    address_town_borough: g.address_town_borough,
+                    address_village_suburb: g.address_village_suburb,
+                    address_neighbourhood: g.address_neighbourhood,
+                    address_any_settlement: g.address_any_settlement,
+                    address_major_streets: g.address_major_streets,
+                    address_major_and_minor_streets:
+                        g.address_major_and_minor_streets,
+                    address_building: g.address_building,
+                };
+            } catch (e) {
+                req.log.warn(
+                    { e },
+                    "reverseGeocode failed, fallback to minimal address"
+                );
+                addrPayload = {
+                    lat: lat!,
+                    lng: lng!,
+                    address_full: null,
+                    address_country: null,
+                    address_state: null,
+                    address_county: null,
+                    address_city: null,
+                    address_town_borough: null,
+                    address_village_suburb: null,
+                    address_neighbourhood: null,
+                    address_any_settlement: null,
+                    address_major_streets: null,
+                    address_major_and_minor_streets: null,
+                    address_building: null,
+                };
+            }
+
+            // ── TX#1: สร้าง address → report (img ว่าง) ─────────────────────────────
+            const { reportId, addressId } = await prisma.$transaction(
                 async (tx: Prisma.TransactionClient) => {
+                    const address = await tx.reportAddress.create({
+                        data: addrPayload,
+                        select: { id: true },
+                    });
+
                     const created = await tx.report.create({
                         data: {
-                            lat: lat!,
-                            lng: lng!,
                             detail: detail!,
                             img: "",
-                            category_id: 1, // ใช้ชื่อ field ให้ตรง schema ปัจจุบัน (snake_case)
+                            address_id: address.id, // ผูก 1:1
+                            category_id: 1, // ปรับตาม business rule
                             user_agent: user_agent ?? "",
                             device_id: device_id ?? "",
                         },
                         select: { id: true },
                     });
-                    return created.id; // UUID
+
+                    return { reportId: created.id, addressId: address.id };
                 }
             );
             createdReportId = reportId;
 
-            // เตรียมปลายทาง แล้วขยับไฟล์
+            // ── ย้ายไฟล์ไปโฟลเดอร์รายงาน ───────────────────────────────────────────
             const reportDir = join(UPLOADS_BASE, String(reportId));
             await ensureDir(reportDir);
 
@@ -200,7 +249,7 @@ const insertReportRoute: FastifyPluginAsync = async (fastify) => {
             await safeMove(tempFilePath!, finalPath);
             tempFilePath = undefined;
 
-            // ── TX#2: อัปเดตรูป + เขียน history ───────────────────────────────────
+            // ── TX#2: อัปเดตรูป + history ──────────────────────────────────────────
             await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
                 await tx.report.update({
                     where: { id: reportId },
@@ -214,23 +263,25 @@ const insertReportRoute: FastifyPluginAsync = async (fastify) => {
                         img_after: finalFileName,
                         finished: false,
                         from_status: null,
-                        to_status: 1, // ให้แน่ใจว่ามี status id=1 ในตาราง statuses
+                        to_status: 1,
                         note: "created",
                     },
                 });
             });
 
-            return reply.code(201).send({ ok: true, id: reportId });
+            return reply.code(201).send({
+                ok: true,
+                id: reportId,
+                address_id: addressId,
+            });
         } catch (err) {
             req.log.error({ err }, "insertReportRoute failed");
 
-            // ถ้ายังมี temp file อยู่ ให้ลบทิ้ง
             if (tempFilePath) {
                 await unlink(tempFilePath).catch(() => {});
             }
 
-            // (ทางเลือก) ถ้าสร้าง report ไปแล้วแต่ย้ายไฟล์ล้มเหลว → ลบแถวทิ้งเพื่อกันข้อมูลค้าง
-            // เปิดใช้ถ้าต้องการ policy แบบ all-or-nothing ระดับแอป
+            // ทางเลือก: ลบรายงานที่สร้างค้าง (all-or-nothing)
             // try {
             //   if (createdReportId) {
             //     await fastify.prisma.report.delete({ where: { id: createdReportId } });
