@@ -69,14 +69,14 @@ export default function OfficialReportForm() {
         <main className="max-w-6xl mx-auto px-4 py-8">
             <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden">
                 {/* Header */}
-                <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-600 px-8 py-8">
+                <div className="bg-green-600 px-8 py-8">
                     <div className="flex items-center justify-between">
                         <div>
                             <h2 className="text-2xl font-bold text-white">แบบฟอร์มแจ้งเหตุการณ์</h2>
-                            <p className="text-blue-100 text-sm mt-2">กรุณากรอกข้อมูลให้ครบถ้วนและแนบหลักฐานประกอบ</p>
+                            <p className="text-green-100 text-sm mt-2">กรุณากรอกข้อมูลให้ครบถ้วนและแนบหลักฐานประกอบ</p>
                         </div>
                         <div className="hidden md:block">
-                            <AlertCircle className="h-12 w-12 text-blue-200" />
+                            <AlertCircle className="h-12 w-12 text-green-200" />
                         </div>
                     </div>
                 </div>
@@ -84,7 +84,7 @@ export default function OfficialReportForm() {
                 <form onSubmit={handleSubmit(onSubmit)} className="p-8 lg:p-12 space-y-8">
                     <div className="space-y-2">
                         <label htmlFor="detail" className="flex items-center text-sm font-bold text-gray-700">
-                            <FileText className="h-4 w-4 mr-2 text-blue-500" />
+                            <FileText className="h-4 w-4 mr-2 text-green-500" />
                             รายละเอียดเหตุการณ์ <span className="text-red-500 ml-1">*</span>
                         </label>
                         <textarea
@@ -98,7 +98,7 @@ export default function OfficialReportForm() {
                                 setValueAs: (v) => (typeof v === 'string' ? v.trim() : v),
                             })}
                             className={`w-full px-4 py-4 border-2 rounded-xl focus:ring-4 transition-all duration-200 bg-gray-50 hover:bg-white resize-none
-                ${errors.detail ? 'border-red-400 focus:ring-red-200' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'}`}
+                ${errors.detail ? 'border-red-400 focus:ring-red-200' : 'border-gray-300 focus:ring-green-500 focus:border-green-500'}`}
                             placeholder="กรุณาอธิบายรายละเอียดเหตุการณ์ที่เกิดขึ้น เวลา สถานที่ และผู้เกี่ยวข้อง..."
                         />
                         <div className="flex items-center justify-between text-xs">
@@ -131,7 +131,7 @@ export default function OfficialReportForm() {
                         <button
                             type="submit"
                             disabled={isSubmitting}
-                            className="w-full flex items-center justify-center px-8 py-6 bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-600 text-white font-bold text-lg rounded-2xl hover:from-blue-700 hover:via-blue-800 hover:to-indigo-700 focus:ring-4 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-xl hover:shadow-2xl transform hover:-translate-y-1 disabled:transform-none"
+                            className="w-full flex items-center justify-center px-8 py-6 bg-green-600 text-white font-bold text-lg rounded-2xl hover:bg-green-700 focus:ring-4 focus:ring-green-500 focus:ring-offset-2 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-xl hover:shadow-2xl transform hover:-translate-y-1 disabled:transform-none"
                         >
                             {isSubmitting ? (
                                 <>

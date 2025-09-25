@@ -45,7 +45,7 @@ async function safeMove(src: string, dest: string) {
 type BodyJson = {
     to_status_id: number;
     note?: string;
-    changedBy?: string;
+    changed_by?: string;
     finished?: boolean;
 };
 
@@ -65,7 +65,7 @@ const updateStatusRoute: FastifyPluginAsync = async (fastify) => {
         // ---------- parse input (supports JSON or multipart) ----------
         let to_status_id: number | undefined;
         let note: string | undefined;
-        let changedBy: string | undefined;
+        let changed_by: string | undefined;
         let finished: boolean | undefined;
 
         // temp ไฟล์ไปไว้ที่ OS tmpdir() เพื่อไม่แตะ UPLOADS_DIR จนกว่าจะ validate ผ่าน
@@ -121,8 +121,8 @@ const updateStatusRoute: FastifyPluginAsync = async (fastify) => {
                         case "note":
                             if (val.trim()) note = val.trim();
                             break;
-                        case "changedBy":
-                            if (val.trim()) changedBy = val.trim();
+                        case "changed_by":
+                            if (val.trim()) changed_by = val.trim();
                             break;
                         case "finished": {
                             const v = val.trim().toLowerCase();
@@ -136,7 +136,7 @@ const updateStatusRoute: FastifyPluginAsync = async (fastify) => {
             const body = req.body as BodyJson;
             to_status_id = Number(body?.to_status_id);
             note = body?.note;
-            changedBy = body?.changedBy;
+            changed_by = body?.changed_by;
             finished = body?.finished;
         }
 
@@ -230,7 +230,7 @@ const updateStatusRoute: FastifyPluginAsync = async (fastify) => {
                             from_status: fromStatus,
                             to_status: newStatus.id,
                             note: note ?? null,
-                            changed_by: changedBy ?? null,
+                            changed_by: changed_by ?? null,
                             finished: !!finished,
                             finished_at: finished ? new Date() : null,
                             img_before: prevImgAfter,

@@ -12,7 +12,7 @@ export interface Report {
 }
 
 interface History {
-    form: {
+    from: {
         label: string;
     };
     to: {
@@ -22,6 +22,7 @@ interface History {
     changed_at: string;
     img_before: string;
     img_after: string;
+    finished: boolean
 }
 
 export interface Address {

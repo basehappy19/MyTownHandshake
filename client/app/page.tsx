@@ -1,3 +1,4 @@
+import Header from '@/components/Header'
 import ReportCard from '@/components/ReportCard'
 import SearchBar from '@/components/SearchBar'
 import StatusesCard from '@/components/StatusesCard'
@@ -23,15 +24,15 @@ export type statusRaw = {
   }
 }
 
-export default async function Home() {
-  const reports: { items: Report[] } = await getReports()
+export default async function Home(props: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
+  const searchParams = await props.searchParams
+  const search = typeof searchParams.search === 'string' ? searchParams.search : undefined;
+  const reports: { items: Report[] } = await getReports(search)
   const statuses: statusRaw = await getStatuses()
-
-  console.log(statuses)
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50">
-      {/* Header Section */}
+      <Header />
       <div className="bg-gradient-to-r from-green-600 to-emerald-600 shadow-xl">
         <div className="mx-auto max-w-7xl px-6 py-12">
           <div className="text-center">
