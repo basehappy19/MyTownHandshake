@@ -1,7 +1,13 @@
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
-  /* config options here */
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+    images: {
+        remotePatterns: [
+            {
+                hostname: "127.0.0.1", // Or "localhost"
+                port: "8080",
+            },
+        ],
+    },
 };
 
-export default nextConfig;
+module.exports = nextConfig;
