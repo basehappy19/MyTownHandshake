@@ -44,6 +44,8 @@ model Report {
   responsible_id String? @map("responsible_id") @db.Uuid
   responsible    User?   @relation(fields: [responsible_id], references: [id])
 
+  rate Decimal? @db.Decimal(2, 1)
+
   @@map("reports_problem")
 }
 
