@@ -25,9 +25,36 @@ function guessContentType(p: string) {
 const UUID_RE =
     /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
 
+type SideMode = "before" | "after";
+
+async function sendFile(reply: any, filePath: string) {
+    const stat = await fs.promises.stat(filePath).catch(() => null);
+    if (!stat) return reply.code(404).send({ message: "File not found" });
+    reply.header("Content-Type", guessContentType(filePath));
+    reply.header("Content-Length", String(stat.size));
+    reply.header("Cache-Control", "public, max-age=3600");
+    await pipeline(fs.createReadStream(filePath), reply.raw);
+}
+
 export default async function imagesRoutes(fastify: FastifyInstance) {
-    fastify.get("/report/image/:reportId", async (req, reply) => {
+    /**
+     * GET /report/:reportId/image
+     * Query:
+     *  - history_id?: number (id ใน report_status_history)
+     *  - side?: 'before' | 'after'
+     *
+     * กติกา:
+     * - ไม่ส่ง history_id -> ส่งรูปหลักของ report
+     * - ส่ง history_id:
+     *    - มี side -> ต้องมีรูปฝั่งนั้น มิฉะนั้น 404
+     *    - ไม่มี side -> ใช้ img_after ถ้ามี; ไม่มีก็ใช้ img_before; ถ้าไม่มีทั้งคู่ 404
+     */
+    fastify.get("/report/:reportId/image", async (req, reply) => {
         const { reportId } = req.params as { reportId: string };
+        const { history_id, side } = (req.query || {}) as {
+            history_id?: string;
+            side?: SideMode;
+        };
 
         if (!UUID_RE.test(reportId)) {
             return reply
@@ -35,45 +62,95 @@ export default async function imagesRoutes(fastify: FastifyInstance) {
                 .send({ error: "Invalid reportId (must be UUID)" });
         }
 
+        const sideMode: SideMode | undefined =
+            side === "before" || side === "after" ? side : undefined;
+
+        const historyIdInt =
+            typeof history_id === "string" && history_id.trim() !== ""
+                ? Number(history_id)
+                : null;
+
+        if (
+            history_id &&
+            (historyIdInt === null || Number.isNaN(historyIdInt))
+        ) {
+            return reply
+                .code(400)
+                .send({ error: "Invalid history_id (must be integer id)" });
+        }
+
+        // โฟลเดอร์ไฟล์
+        const UPLOADS_DIR =
+            process.env.UPLOADS_DIR ?? path.join(process.cwd(), "uploads");
+        const REPORTS_DIR = path.join(UPLOADS_DIR, "reports");
+
         try {
-            const r = await fastify.prisma.$transaction(
+            const out = await fastify.prisma.$transaction(
                 async (tx: Prisma.TransactionClient) => {
-                    // อ่านเฉพาะฟิลด์ที่ต้องใช้
-                    return tx.report.findUnique({
+                    // อ่าน base report
+                    const base = await tx.report.findUnique({
                         where: { id: reportId },
-                        select: { img: true },
+                        select: { img: true, id: true },
                     });
+
+                    if (!base) {
+                        return {
+                            fileRel: null as string | null,
+                            fromHistory: false,
+                        };
+                    }
+
+                    // ไม่ระบุ history_id -> ส่งรูปหลัก
+                    if (!historyIdInt) {
+                        return {
+                            fileRel: base.img ?? null,
+                            fromHistory: false,
+                        };
+                    }
+
+                    // ระบุ history_id -> ดูเฉพาะแถวนั้น
+                    const h = await tx.reportStatusHistory.findFirst({
+                        where: { id: historyIdInt, report_id: reportId },
+                        select: { img_before: true, img_after: true },
+                    });
+
+                    if (!h) {
+                        return {
+                            fileRel: null as string | null,
+                            fromHistory: true,
+                        };
+                    }
+
+                    // มี side -> ต้องมีรูปฝั่งนั้น
+                    if (sideMode) {
+                        const f =
+                            sideMode === "after"
+                                ? h.img_after ?? null
+                                : h.img_before ?? null;
+                        return { fileRel: f, fromHistory: true };
+                    }
+
+                    // ไม่มี side -> เลือกตามลำดับ after -> before
+                    const f = h.img_after ?? h.img_before ?? null;
+                    return { fileRel: f, fromHistory: true };
                 }
             );
 
-            if (!r?.img) {
-                return reply
-                    .code(404)
-                    .send({ message: "Report or image not found" });
+            if (!out.fileRel) {
+                return reply.code(404).send({ message: "Image not found" });
             }
 
-            const UPLOADS_DIR =
-                process.env.UPLOADS_DIR ?? path.join(process.cwd(), "uploads");
-            const REPORTS_DIR = path.join(UPLOADS_DIR, "reports");
-            const filePath = path.join(
-                REPORTS_DIR,
-                reportId,
-                path.basename(r.img)
-            );
+            // กัน path traversal
+            const safeName = path.basename(out.fileRel);
 
-            const stat = await fs.promises.stat(filePath).catch(() => null);
-            if (!stat) {
-                return reply.code(404).send({ message: "File not found" });
-            }
+            const filePath = out.fromHistory
+                ? path.join(REPORTS_DIR, reportId, "history", safeName)
+                : path.join(REPORTS_DIR, reportId, safeName);
 
-            reply.header("Content-Type", guessContentType(filePath));
-            reply.header("Content-Length", String(stat.size));
-            reply.header("Cache-Control", "public, max-age=3600");
-
-            await pipeline(fs.createReadStream(filePath), reply.raw);
+            await sendFile(reply, filePath);
             return;
-        } catch (err) {
-            req.log.error({ err }, "serve report image failed");
+        } catch (err: any) {
+            req.log.error({ err }, "serve report image (simple) failed");
             return reply.code(500).send({ message: "Internal error" });
         }
     });

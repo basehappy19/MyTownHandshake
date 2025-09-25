@@ -18,7 +18,7 @@ interface Item {
 }
 
 const getStatisticsStatuses: FastifyPluginAsync = async (fastify) => {
-    fastify.get("/admin/statistic/statuses", async (req, res) => {
+    fastify.get("/statistic/statuses", async (req, res) => {
         const rows = await fastify.prisma.$queryRaw<StatusRow[]>`
       WITH latest AS (
         SELECT DISTINCT ON (rsh.report_id)

@@ -1,14 +1,12 @@
 import type { FastifyPluginAsync } from "fastify";
 import chooseInstitutionRoute from "./choose_institution";
-import { getReportRoute } from "./get_report";
 import { getStatus } from "./get_status";
-import { getStatisticsStatuses } from "./get_statistics";
+import updateStatusRoute from "./update_status";
 
 const adminRoutes: FastifyPluginAsync = async (fastify) => {
-    await fastify.register(getReportRoute);
     await fastify.register(chooseInstitutionRoute);
     await fastify.register(getStatus)
-    await fastify.register(getStatisticsStatuses)
+    await fastify.register(updateStatusRoute)
 };
 
 export default adminRoutes;

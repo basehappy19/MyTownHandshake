@@ -2,6 +2,7 @@
 /server_fastify/.env
 /server_fastify/dist
 /server_fastify/.env
+/server_fastify/uploads
 
 /client/node_modules
 /client/.env
