@@ -52,7 +52,7 @@ export default async function imagesRoutes(fastify: FastifyInstance) {
      * เส้นทางไฟล์ (กรณีเดียว):
      *   uploads/reports/:reportId/histories/<filename>
      */
-    fastify.get("/report/image/:reportId/", async (req, reply) => {
+    fastify.get("/report/image/:reportId", async (req, reply) => {
         const { reportId } = req.params as { reportId: string };
         const { history_id, side } = (req.query || {}) as {
             history_id?: string;
