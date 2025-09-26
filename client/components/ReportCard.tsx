@@ -1,5 +1,6 @@
 import { Report } from '@/types/Report'
 import Image from 'next/image'
+import Link from 'next/link'
 import React from 'react'
 
 const ReportCard = ({ report }: { report: Report }) => {
@@ -111,9 +112,9 @@ const ReportCard = ({ report }: { report: Report }) => {
 
             {/* Action Footer */}
             <div className="px-6 pb-6">
-                <button className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-medium py-2.5 px-4 rounded-xl transition-all duration-200 transform hover:scale-[1.02] shadow-lg hover:shadow-xl">
+                <Link href={`/detail/${report.id}`} className="inline-block text-center w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-medium py-2.5 px-4 rounded-xl transition-all duration-200 transform hover:scale-[1.02] shadow-lg hover:shadow-xl">
                     ดูรายละเอียด
-                </button>
+                </Link>
             </div>
         </div>
     )
