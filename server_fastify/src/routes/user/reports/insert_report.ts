@@ -1,13 +1,18 @@
+// src/routes/report/insertReportRoute.ts
 import { randomUUID } from "node:crypto";
 import { extname, join, basename } from "node:path";
-import { mkdir, access, unlink, rename } from "node:fs/promises";
+import { mkdir, access, unlink, rename, stat } from "node:fs/promises";
 import { constants as fsConstants } from "node:fs";
 import { pipeline } from "node:stream/promises";
 import { createWriteStream, createReadStream } from "node:fs";
+import { tmpdir } from "node:os"; // <-- ใช้ tmpdir แบบ updateStatusRoute
 import type { Prisma } from "@prisma/client";
 import type { FastifyPluginAsync, FastifyReply } from "fastify";
 import { reverseGeocode } from "../../../functions/reverseGeoCode";
 
+const ALLOWED_MIME = new Set(["image/jpeg", "image/png", "image/webp"]);
+
+// ---------- helpers ----------
 async function ensureDir(dir: string) {
     try {
         await access(dir, fsConstants.F_OK);
@@ -16,7 +21,6 @@ async function ensureDir(dir: string) {
     }
 }
 
-// helper: pickExtension
 function pickExtension(filename: string | undefined, mimetype: string) {
     const e = filename ? extname(filename).toLowerCase() : "";
     if (e) return e;
@@ -26,7 +30,7 @@ function pickExtension(filename: string | undefined, mimetype: string) {
     return ".bin";
 }
 
-// helper: safe move (rename with EXDEV fallback)
+// safe move (rename with EXDEV fallback)
 async function safeMove(src: string, dest: string) {
     try {
         await rename(src, dest);
@@ -40,18 +44,55 @@ async function safeMove(src: string, dest: string) {
     }
 }
 
+// ---------- NEW helpers for naming ----------
+function formatDDMMYYYY(d: Date) {
+    const dd = String(d.getDate()).padStart(2, "0");
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const yyyy = String(d.getFullYear());
+    return `${dd}-${mm}-${yyyy}`;
+}
+
+function slugifyStatusName(name: string) {
+    // ปล่อยอักษรไทย/อังกฤษ/ตัวเลข ขีดกลาง/ขีดล่าง, เว้นวรรค -> -
+    const normalized = name.normalize("NFKD");
+    const replacedSpace = normalized.replace(/\s+/g, "-");
+    const cleaned = replacedSpace.replace(/[^0-9A-Za-zก-๙\-_]/g, "");
+    return cleaned || "status";
+}
+
+async function ensureUniqueFilename(
+    dir: string,
+    baseName: string,
+    ext: string
+) {
+    // ตรวจซ้ำ: <base><ext>, <base>(1)<ext>, <base>(2)<ext>, ...
+    let candidate = `${baseName}${ext}`;
+    let i = 1;
+    while (true) {
+        try {
+            await stat(join(dir, candidate));
+            candidate = `${baseName}(${i})${ext}`;
+            i++;
+        } catch {
+            return candidate;
+        }
+    }
+}
+
+// ----------------------------------------
+
 const insertReportRoute: FastifyPluginAsync = async (fastify) => {
     fastify.post("/report", async (req, reply) => {
-        const ALLOWED_MIME = new Set(["image/jpeg", "image/png", "image/webp"]);
         const UPLOADS_DIR = process.env.UPLOADS_DIR;
         if (!UPLOADS_DIR) throw new Error("UPLOADS_DIR is not configured");
-        const UPLOADS_BASE = join(UPLOADS_DIR, "reports");
 
         function badRequest(r: FastifyReply, msg: string) {
             return r.code(400).send({ ok: false, error: msg });
         }
 
+        // temp เก็บไฟล์ที่ OS tmp ก่อน (เหมือน updateStatusRoute)
         let tempFilePath: string | undefined;
+        let tempFileMime = "";
         let createdReportId: string | undefined;
 
         try {
@@ -62,8 +103,7 @@ const insertReportRoute: FastifyPluginAsync = async (fastify) => {
                 );
             }
 
-            await ensureDir(UPLOADS_BASE);
-
+            // ---------- parse multipart ----------
             const parts = req.parts();
 
             let lat: number | undefined;
@@ -74,7 +114,6 @@ const insertReportRoute: FastifyPluginAsync = async (fastify) => {
 
             let fileReceived = false;
             let uploadedOriginalName = "upload";
-            let uploadedMime = "application/octet-stream";
 
             for await (const part of parts) {
                 try {
@@ -101,14 +140,16 @@ const insertReportRoute: FastifyPluginAsync = async (fastify) => {
                         }
 
                         uploadedOriginalName = part.filename ?? "upload";
-                        uploadedMime = part.mimetype;
+                        tempFileMime = part.mimetype;
 
                         const ext = pickExtension(
                             uploadedOriginalName,
-                            uploadedMime
+                            tempFileMime
                         );
-                        const storedTempName = `${randomUUID()}${ext}`;
-                        tempFilePath = join(UPLOADS_BASE, storedTempName);
+                        const tmpName = `${randomUUID()}${ext}`;
+                        const osTmpBase = join(tmpdir(), "mth-uploads");
+                        await ensureDir(osTmpBase);
+                        tempFilePath = join(osTmpBase, tmpName);
 
                         await pipeline(
                             part.file,
@@ -168,9 +209,8 @@ const insertReportRoute: FastifyPluginAsync = async (fastify) => {
             }
 
             const prisma = fastify.prisma!;
-            const tempName = basename(tempFilePath!);
 
-            // เรียก Nominatim เพื่อเตรียม payload ของที่อยู่
+            // Reverse geocode
             let addrPayload: Prisma.ReportAddressUncheckedCreateInput;
             try {
                 const g = await reverseGeocode(lat!, lng!);
@@ -214,7 +254,7 @@ const insertReportRoute: FastifyPluginAsync = async (fastify) => {
                 };
             }
 
-            // ── TX#1: สร้าง address → report (img ว่าง) ─────────────────────────────
+            // ── TX#1: create address → report (img ว่าง)
             const { reportId, addressId } = await prisma.$transaction(
                 async (tx: Prisma.TransactionClient) => {
                     const address = await tx.reportAddress.create({
@@ -226,8 +266,8 @@ const insertReportRoute: FastifyPluginAsync = async (fastify) => {
                         data: {
                             detail: detail!,
                             img: "",
-                            address_id: address.id, // ผูก 1:1
-                            category_id: 1, // ปรับตาม business rule
+                            address_id: address.id,
+                            category_id: 1,
                             user_agent: user_agent ?? "",
                             device_id: device_id ?? "",
                         },
@@ -239,31 +279,70 @@ const insertReportRoute: FastifyPluginAsync = async (fastify) => {
             );
             createdReportId = reportId;
 
-            // ── ย้ายไฟล์ไปโฟลเดอร์รายงาน ───────────────────────────────────────────
-            const reportDir = join(UPLOADS_BASE, String(reportId));
+            // ── เตรียมโฟลเดอร์ปลายทางแบบเดียวกับ updateStatusRoute ──
+            const baseReportsDir = join(UPLOADS_DIR, "reports");
+            const reportDir = join(baseReportsDir, String(reportId));
+            const historiesDir = join(reportDir, "histories");
+            await ensureDir(baseReportsDir);
             await ensureDir(reportDir);
+            await ensureDir(historiesDir);
 
-            const finalFileName = tempName;
-            const finalPath = join(reportDir, finalFileName);
+            // ── ตั้งชื่อไฟล์ ──
+            const ext = pickExtension(uploadedOriginalName, tempFileMime);
 
-            await safeMove(tempFilePath!, finalPath);
+            // ลำดับ (นับจำนวนรูปใน history ของรายงานนี้)
+            const existingCount = await prisma.reportStatusHistory.count({
+                where: {
+                    report_id: reportId,
+                    OR: [
+                        { img_before: { not: null } },
+                        { img_after: { not: null } },
+                    ],
+                },
+            });
+            const orderNo = existingCount + 1;
+
+            // สถานะเริ่มต้น (active + sort_order ต่ำสุด) -> ใช้ code เป็นชื่อ
+            const defaultStatus = await prisma.status.findFirst({
+                where: { is_active: true },
+                orderBy: { sort_order: "asc" },
+                select: { id: true, code: true },
+            });
+            if (!defaultStatus) {
+                throw new Error("ไม่พบสถานะเริ่มต้นในฐานข้อมูล");
+            }
+            const statusId = defaultStatus.id;
+            const statusSlug = slugifyStatusName(defaultStatus.code);
+
+            const today = formatDDMMYYYY(new Date());
+            const baseNameForUnique = `${orderNo}_${statusSlug}_${today}`;
+            const finalFileName = await ensureUniqueFilename(
+                historiesDir,
+                baseNameForUnique,
+                ext
+            );
+            const finalPathInHistories = join(historiesDir, finalFileName);
+
+            // ── ย้ายไฟล์จาก OS tmp → histories (ที่เดียว) ──
+            await safeMove(tempFilePath!, finalPathInHistories);
             tempFilePath = undefined;
 
-            // ── TX#2: อัปเดตรูป + history ──────────────────────────────────────────
+            // ── TX#2: อัปเดต report.img ให้ชี้ไปที่ histories/<file> + สร้าง history ──
+            const relativeImgPath = join("histories", finalFileName); // <- ไม่มีไฟล์ซ้ำที่รากแล้ว
             await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
                 await tx.report.update({
                     where: { id: reportId },
-                    data: { img: finalFileName },
+                    data: { img: relativeImgPath },
                 });
 
                 await tx.reportStatusHistory.create({
                     data: {
                         report_id: reportId,
                         img_before: null,
-                        img_after: finalFileName,
+                        img_after: finalFileName, // เก็บเฉพาะชื่อไฟล์เหมือน updateStatusRoute
                         finished: false,
                         from_status: null,
-                        to_status: 1,
+                        to_status: statusId,
                         note: "created",
                     },
                 });
@@ -276,18 +355,9 @@ const insertReportRoute: FastifyPluginAsync = async (fastify) => {
             });
         } catch (err) {
             req.log.error({ err }, "insertReportRoute failed");
-
             if (tempFilePath) {
                 await unlink(tempFilePath).catch(() => {});
             }
-
-            // ทางเลือก: ลบรายงานที่สร้างค้าง (all-or-nothing)
-            // try {
-            //   if (createdReportId) {
-            //     await fastify.prisma.report.delete({ where: { id: createdReportId } });
-            //   }
-            // } catch {}
-
             return reply.code(500).send({ ok: false, error: "Internal error" });
         }
     });

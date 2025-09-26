@@ -17,6 +17,11 @@ model Status {
   id         Int     @id @db.SmallInt
   code       String  @unique
   label      String
+  gradient   String?
+  badge_ring String?
+  badge_bg   String?
+  icon       String?
+  text_color String?
   sort_order Int     @default(0) @map("sort_order") @db.SmallInt
   is_active  Boolean @default(true) @map("is_active")
 

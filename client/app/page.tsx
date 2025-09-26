@@ -11,6 +11,11 @@ export type statusRaw = {
   items: {
     id: number
     code: string
+    gradient?: string
+    badge_ring?: string
+    badge_bg?: string
+    icon?: string
+    text_color?: string
     label: string
     count: number
     percent: number

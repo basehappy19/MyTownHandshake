@@ -139,8 +139,26 @@ const getReportRoute: FastifyPluginAsync = async (fastify) => {
                         histories: {
                             orderBy: { changed_at: "desc" },
                             select: {
-                                from: { select: { label: true } },
-                                to: { select: { label: true } },
+                                from: {
+                                    select: {
+                                        gradient: true,
+                                        badge_ring: true,
+                                        badge_bg: true,
+                                        icon: true,
+                                        text_color: true,
+                                        label: true,
+                                    },
+                                },
+                                to: {
+                                    select: {
+                                        gradient: true,
+                                        badge_ring: true,
+                                        badge_bg: true,
+                                        icon: true,
+                                        text_color: true,
+                                        label: true,
+                                    },
+                                },
                                 note: true,
                                 changed_at: true,
                                 img_before: true,
@@ -201,8 +219,27 @@ const getReportRoute: FastifyPluginAsync = async (fastify) => {
                 histories: {
                     orderBy: { changed_at: "desc" },
                     select: {
-                        from: { select: { label: true } },
-                        to: { select: { label: true } },
+                        id: true,
+                        from: {
+                            select: {
+                                gradient: true,
+                                badge_ring: true,
+                                badge_bg: true,
+                                icon: true,
+                                text_color: true,
+                                label: true,
+                            },
+                        },
+                        to: {
+                            select: {
+                                gradient: true,
+                                badge_ring: true,
+                                badge_bg: true,
+                                icon: true,
+                                text_color: true,
+                                label: true,
+                            },
+                        },
                         note: true,
                         changed_at: true,
                         img_before: true,

@@ -1,21 +1,25 @@
-import { formatDate } from '@/functions/format_date';
-import { getReport } from '@/functions/reports/get_reports';
-import { getStatusColor } from '@/functions/status_color';
-import { getStatusIcon } from '@/functions/status_icon';
-import { Report } from '@/types/Report';
-import { ArrowRight, Calendar, FileText, MapPin } from 'lucide-react';
-import Image from 'next/image';
+import { formatDate } from '@/functions/format_date'
+import { getReport } from '@/functions/reports/get_reports'
+import { getStatusIconFromDB } from '@/functions/status_icon'
+import { Report } from '@/types/Report'
+import { ArrowRight, Calendar, FileText, MapPin } from 'lucide-react'
+import Image from 'next/image'
 import React from 'react'
 
 export default async function DetailReport({
     params,
 }: {
-    params: Promise<{ slug: string }>
+    params: { slug: string }  
 }) {
-    const { slug } = await params;
-    const { item }: { item: Report } = await getReport(slug);
-    const report: Report = item;
+    const { slug } = await params
+    const { item }: { item: Report } = await getReport(slug)
+    const report: Report = item
 
+    const latest = report.histories?.[0]
+    const latestLabel = latest?.to?.label ?? 'ไม่ทราบสถานะ'
+    const latestChangedAt = latest?.changed_at
+    const latestNote = latest?.note ?? ''
+    const latestFinished = report.histories[0]?.finished === true;
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -35,23 +39,30 @@ export default async function DetailReport({
                         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                             <div className="flex items-center justify-between mb-4">
                                 <h2 className="text-lg font-semibold text-gray-800">สถานะปัจจุบัน</h2>
-                                <div className={`px-3 py-1 rounded-full border text-sm font-medium ${getStatusColor(report.histories[0].to.label)}`}>
-                                    {report.histories[0].to.label}
+                                <div
+                                    className={`px-3 py-1 rounded-full border text-sm font-medium text-white ${latest.to.badge_ring} ${latest.to.gradient}`}
+                                >
+                                    {latestLabel}
                                 </div>
                             </div>
 
                             <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded">
                                 <div className="flex items-center">
                                     <div className="flex-shrink-0">
-                                        {getStatusIcon(report.histories[0].to.label, report.histories[0].finished)}
+                                        {getStatusIconFromDB({
+                                            icon: latest.to.icon,
+                                            className: "w-5 h-5 text-black"
+                                        })}
                                     </div>
                                     <div className="ml-3">
                                         <p className="text-sm text-green-800 font-medium">
-                                            อัปเดตล่าสุด: {formatDate(report.histories[0].changed_at)}
+                                            อัปเดตล่าสุด: {latestChangedAt ? formatDate(latestChangedAt) : '-'}
                                         </p>
-                                        <p className="text-sm text-green-700 mt-1">
-                                            {report.histories[0].note}
-                                        </p>
+                                        {latestNote && (
+                                            <p className="text-sm text-green-700 mt-1">
+                                                {latestNote}
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -66,7 +77,7 @@ export default async function DetailReport({
 
                             <div className="space-y-4">
                                 <div>
-                                    <label className="text-sm font-medium text-gray-500">หมวดหมู่</label>
+                                    <label className="text-sm font-medium text-gray-500 me-3">หมวดหมู่</label>
                                     <p className="text-gray-800 mt-1 bg-green-100 text-green-800 px-3 py-1 rounded-full inline-block text-sm">
                                         {report.category.name}
                                     </p>
@@ -95,13 +106,12 @@ export default async function DetailReport({
                                     <div className="relative w-full h-64 overflow-hidden rounded-md mb-2">
                                         <Image
                                             src={`${process.env.NEXT_PUBLIC_API_BASE_URL}/report/${report.id}/image`}
-                                            alt={report.img.split("-").pop() ?? "report image"}
+                                            alt={report.detail || 'report image'}
                                             fill
                                             className="object-cover"
                                         />
                                     </div>
                                 </div>
-
                             </div>
                         </div>
 
@@ -113,68 +123,101 @@ export default async function DetailReport({
                             </h2>
 
                             <div className="space-y-6">
-                                {report.histories.map((history, index) => (
-                                    <div key={index} className="relative">
-                                        {/* Timeline Line */}
-                                        {index < report.histories.length - 1 && (
-                                            <div className="absolute left-6 top-12 w-0.5 h-16 bg-gray-200"></div>
-                                        )}
+                                {report.histories.map((history, index) => {
+                                    const fromLabel = history.from?.label
+                                    const toLabel = history.to?.label
+                                    const isDone = latestFinished ? true : index > 0;
 
-                                        <div className="flex items-start">
-                                            {/* Timeline Icon */}
-                                            <div className={`flex-shrink-0 w-12 h-12 rounded-full border-2 flex items-center justify-center ${history.finished ? 'bg-green-100 border-green-500' : 'bg-orange-100 border-orange-500'
-                                                }`}>
-                                                {getStatusIcon(history.to.label, history.finished)}
-                                            </div>
+                                    return (
+                                        <div key={history.id ?? index} className="relative">
+                                            {/* Timeline Line */}
+                                            {index < report.histories.length - 1 && (
+                                                <div className="absolute left-6 top-12 w-0.5 h-16 bg-gray-200" />
+                                            )}
 
-                                            {/* Timeline Content */}
-                                            <div className="ml-4 flex-grow">
-                                                <div className="bg-gray-50 rounded-lg p-4">
-                                                    <div className="flex items-center justify-between mb-2">
-                                                        <div className="flex items-center text-sm text-gray-600">
-                                                            {history.from && (
-                                                                <>
-                                                                    <span className={`px-2 py-1 rounded text-xs ${getStatusColor(history.from.label)}`}>
-                                                                        {history.from.label}
-                                                                    </span>
-                                                                    <ArrowRight className="w-4 h-4 mx-2" />
-                                                                </>
-                                                            )}
-                                                            <span className={`px-2 py-1 rounded text-xs ${getStatusColor(history.to.label)}`}>
-                                                                {history.to.label}
-                                                            </span>
+                                            <div className="flex items-start">
+                                                {/* Timeline Icon */}
+                                                <div
+                                                    className={`flex-shrink-0 w-12 h-12 rounded-full border-2 flex items-center justify-center ${isDone
+                                                        ? "bg-green-100 border-green-500"
+                                                        : "bg-orange-100 border-orange-500"
+                                                        }`}
+                                                >
+                                                    {getStatusIconFromDB({
+                                                        icon: history.to.icon,
+                                                        className: "w-5 h-5",
+                                                        done: isDone,
+                                                    })}
+                                                </div>
+
+                                                {/* Timeline Content */}
+                                                <div className="ml-4 flex-grow">
+                                                    <div className="bg-gray-50 rounded-lg p-4">
+                                                        <div className="flex items-center justify-between mb-2">
+                                                            <div className="flex items-center text-sm text-gray-600">
+                                                                {fromLabel && (
+                                                                    <>
+                                                                        <span
+                                                                            className={`px-2 py-1 rounded text-xs text-white ${history.from.badge_ring} ${history.from.gradient}`}
+                                                                        >
+                                                                            {fromLabel}
+                                                                        </span>
+                                                                        <ArrowRight className="w-4 h-4 mx-2" />
+                                                                    </>
+                                                                )}
+                                                                <span
+                                                                    className={`px-2 py-1 rounded text-xs text-white ${history.to.badge_ring} ${history.to.gradient}`}
+                                                                >
+                                                                    {toLabel}
+                                                                </span>
+                                                            </div>
                                                         </div>
+
+                                                        {history.note && (
+                                                            <p className="text-gray-800 font-medium mb-1">
+                                                                {history.note}
+                                                            </p>
+                                                        )}
+
+                                                        <p className="text-sm text-gray-500">
+                                                            {formatDate(history.changed_at)}
+                                                        </p>
+
+                                                        {/* Images */}
+                                                        {(history.img_before || history.img_after) && (
+                                                            <div className="mt-3 flex gap-2">
+                                                                {history.img_before && (
+                                                                    <div className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded">
+                                                                        <div className="mb-1">ก่อน</div>
+                                                                        <Image
+                                                                            width={300}
+                                                                            height={300}
+                                                                            src={`${process.env.NEXT_PUBLIC_API_BASE_URL}/report/${report.id}/image?history_id=${history.id}&side=before`}
+                                                                            alt={`ก่อน - ${toLabel ?? 'ภาพ'}`}
+                                                                            className="rounded"
+                                                                        />
+                                                                    </div>
+                                                                )}
+                                                                {history.img_after && (
+                                                                    <div className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded">
+                                                                        <div className="mb-1">หลัง</div>
+                                                                        <Image
+                                                                            width={300}
+                                                                            height={300}
+                                                                            src={`${process.env.NEXT_PUBLIC_API_BASE_URL}/report/${report.id}/image?history_id=${history.id}&side=after`}
+                                                                            alt={`หลัง - ${toLabel ?? 'ภาพ'}`}
+                                                                            className="rounded"
+                                                                        />
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        )}
                                                     </div>
-
-                                                    <p className="text-gray-800 font-medium mb-1">
-                                                        {history.note}
-                                                    </p>
-
-                                                    <p className="text-sm text-gray-500">
-                                                        {formatDate(history.changed_at)}
-                                                    </p>
-
-                                                    {/* Images */}
-                                                    {(history.img_before || history.img_after) && (
-                                                        <div className="mt-3 flex gap-2">
-                                                            {history.img_before && (
-                                                                <div className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded">
-
-                                                                    รูปก่อน: {history.img_before.split('-').pop()}
-                                                                </div>
-                                                            )}
-                                                            {history.img_after && (
-                                                                <div className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded">
-                                                                    รูปหลัง: {history.img_after.split('-').pop()}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    )}
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    )
+                                })}
                             </div>
                         </div>
                     </div>
@@ -191,11 +234,12 @@ export default async function DetailReport({
                             <div className="space-y-3">
                                 <div>
                                     <label className="text-sm font-medium text-gray-500">ที่อยู่</label>
-                                    <p className="text-gray-800 mt-1 text-sm">{report.address.address_full}</p>
+                                    <p className="text-gray-800 mt-1 text-sm">
+                                        {report.address.address_full}
+                                    </p>
                                 </div>
 
-
-                                {/* Map placeholder */}
+                                {/* Map */}
                                 <div className="bg-gray-100 rounded-lg text-center mt-4">
                                     <iframe
                                         title="แผนที่ตำแหน่งที่เกิดเหตุ"

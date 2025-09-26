@@ -48,8 +48,11 @@ export default async function imagesRoutes(fastify: FastifyInstance) {
      * - ส่ง history_id:
      *    - มี side -> ต้องมีรูปฝั่งนั้น มิฉะนั้น 404
      *    - ไม่มี side -> ใช้ img_after ถ้ามี; ไม่มีก็ใช้ img_before; ถ้าไม่มีทั้งคู่ 404
+     *
+     * เส้นทางไฟล์ (กรณีเดียว):
+     *   uploads/reports/:reportId/histories/<filename>
      */
-    fastify.get("/report/:reportId/image", async (req, reply) => {
+    fastify.get("/report/image/:reportId/", async (req, reply) => {
         const { reportId } = req.params as { reportId: string };
         const { history_id, side } = (req.query || {}) as {
             history_id?: string;
@@ -85,7 +88,7 @@ export default async function imagesRoutes(fastify: FastifyInstance) {
         const REPORTS_DIR = path.join(UPLOADS_DIR, "reports");
 
         try {
-            const out = await fastify.prisma.$transaction(
+            const fileRel = await fastify.prisma.$transaction(
                 async (tx: Prisma.TransactionClient) => {
                     // อ่าน base report
                     const base = await tx.report.findUnique({
@@ -94,63 +97,51 @@ export default async function imagesRoutes(fastify: FastifyInstance) {
                     });
 
                     if (!base) {
-                        return {
-                            fileRel: null as string | null,
-                            fromHistory: false,
-                        };
+                        return null as string | null;
                     }
 
-                    // ไม่ระบุ history_id -> ส่งรูปหลัก
+                    // ไม่ระบุ history_id -> ส่งรูปหลักของ report
                     if (!historyIdInt) {
-                        return {
-                            fileRel: base.img ?? null,
-                            fromHistory: false,
-                        };
+                        return base.img ?? null;
                     }
 
-                    // ระบุ history_id -> ดูเฉพาะแถวนั้น
+                    // ระบุ history_id -> อ่านเฉพาะแถวนั้น
                     const h = await tx.reportStatusHistory.findFirst({
                         where: { id: historyIdInt, report_id: reportId },
                         select: { img_before: true, img_after: true },
                     });
 
-                    if (!h) {
-                        return {
-                            fileRel: null as string | null,
-                            fromHistory: true,
-                        };
-                    }
+                    if (!h) return null;
 
-                    // มี side -> ต้องมีรูปฝั่งนั้น
                     if (sideMode) {
-                        const f =
-                            sideMode === "after"
-                                ? h.img_after ?? null
-                                : h.img_before ?? null;
-                        return { fileRel: f, fromHistory: true };
+                        return sideMode === "after"
+                            ? h.img_after ?? null
+                            : h.img_before ?? null;
                     }
 
-                    // ไม่มี side -> เลือกตามลำดับ after -> before
-                    const f = h.img_after ?? h.img_before ?? null;
-                    return { fileRel: f, fromHistory: true };
+                    return h.img_after ?? h.img_before ?? null;
                 }
             );
 
-            if (!out.fileRel) {
+            if (!fileRel) {
                 return reply.code(404).send({ message: "Image not found" });
             }
 
-            // กัน path traversal
-            const safeName = path.basename(out.fileRel);
+            // ป้องกัน path traversal และรองรับกรณี img เก็บเป็น "histories/<file>" หรือ "<file>"
+            const safeName = path.basename(fileRel);
 
-            const filePath = out.fromHistory
-                ? path.join(REPORTS_DIR, reportId, "history", safeName)
-                : path.join(REPORTS_DIR, reportId, safeName);
+            // ดึงจากที่เดียว: uploads/reports/:id/histories/<filename>
+            const filePath = path.join(
+                REPORTS_DIR,
+                reportId,
+                "histories",
+                safeName
+            );
 
             await sendFile(reply, filePath);
             return;
         } catch (err: any) {
-            req.log.error({ err }, "serve report image (simple) failed");
+            req.log.error({ err }, "serve report image failed");
             return reply.code(500).send({ message: "Internal error" });
         }
     });

@@ -1,3 +1,5 @@
+import { statusRaw } from "@/app/page";
+
 export interface Report {
     id: number;
     detail: string;
@@ -12,17 +14,14 @@ export interface Report {
 }
 
 interface History {
-    from: {
-        label: string;
-    };
-    to: {
-        label: string;
-    };
+    id: number;
+    from: statusRaw['items'][number];
+    to: statusRaw['items'][number];
     note: string;
     changed_at: string;
     img_before: string;
     img_after: string;
-    finished: boolean
+    finished: boolean;
 }
 
 export interface Address {
