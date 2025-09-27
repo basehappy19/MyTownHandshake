@@ -31,7 +31,7 @@ const ReportCard = ({ report }: { report: Report }) => {
                     width={400}
                     height={200}
                     quality={80}
-                    src={`${process.env.NEXT_PUBLIC_API_BASE_URL}/report/${report.id}/image`}
+                    src={`${process.env.NEXT_PUBLIC_API_BASE_URL}/report/image/${report.id}`}
                     alt='รูปภาพรายงาน'
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />

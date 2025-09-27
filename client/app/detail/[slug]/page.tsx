@@ -1,6 +1,7 @@
 import { formatDate } from '@/functions/format_date'
 import { getReport } from '@/functions/reports/get_reports'
 import { getStatusIconFromDB } from '@/functions/status_icon'
+import { getStatusStyle, StatusCode } from '@/functions/status_style'
 import { Report } from '@/types/Report'
 import { ArrowRight, Calendar, FileText, MapPin } from 'lucide-react'
 import Image from 'next/image'
@@ -9,17 +10,21 @@ import React from 'react'
 export default async function DetailReport({
     params,
 }: {
-    params: { slug: string }  
+    params: { slug: string }
 }) {
-    const { slug } = await params
+    const { slug } = params
     const { item }: { item: Report } = await getReport(slug)
     const report: Report = item
 
-    const latest = report.histories?.[0]
+    const latest = report?.histories?.[0]
     const latestLabel = latest?.to?.label ?? 'ไม่ทราบสถานะ'
     const latestChangedAt = latest?.changed_at
     const latestNote = latest?.note ?? ''
-    const latestFinished = report.histories[0]?.finished === true;
+    const latestFinished = latest?.finished === true
+
+    // ใช้ style จาก code (fallback เป็น 'pending')
+    const latestCode = (latest?.to?.code ?? 'pending') as StatusCode
+    const latestStyle = getStatusStyle(latestCode)
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -40,7 +45,7 @@ export default async function DetailReport({
                             <div className="flex items-center justify-between mb-4">
                                 <h2 className="text-lg font-semibold text-gray-800">สถานะปัจจุบัน</h2>
                                 <div
-                                    className={`px-3 py-1 rounded-full border text-sm font-medium text-white ${latest.to.badge_ring} ${latest.to.gradient}`}
+                                    className={`px-3 py-1 rounded-full border text-sm font-medium text-white ${latestStyle.badge_ring} ${latestStyle.gradient}`}
                                 >
                                     {latestLabel}
                                 </div>
@@ -50,8 +55,9 @@ export default async function DetailReport({
                                 <div className="flex items-center">
                                     <div className="flex-shrink-0">
                                         {getStatusIconFromDB({
-                                            icon: latest.to.icon,
-                                            className: "w-5 h-5 text-black"
+                                            // ถ้ามี icon จาก DB ก็ใช้, ไม่มีก็ fallback style.icon
+                                            icon: latest?.to?.icon ?? latestStyle.icon,
+                                            className: 'w-5 h-5 text-black',
                                         })}
                                     </div>
                                     <div className="ml-3">
@@ -79,23 +85,25 @@ export default async function DetailReport({
                                 <div>
                                     <label className="text-sm font-medium text-gray-500 me-3">หมวดหมู่</label>
                                     <p className="text-gray-800 mt-1 bg-green-100 text-green-800 px-3 py-1 rounded-full inline-block text-sm">
-                                        {report.category.name}
+                                        {report?.category?.name ?? '-'}
                                     </p>
                                 </div>
 
                                 <div>
                                     <label className="text-sm font-medium text-gray-500">รายละเอียด</label>
-                                    <p className="text-gray-800 mt-1">{report.detail}</p>
+                                    <p className="text-gray-800 mt-1">{report?.detail ?? '-'}</p>
                                 </div>
 
                                 <div>
                                     <label className="text-sm font-medium text-gray-500">รหัสเรื่อง</label>
-                                    <p className="text-gray-600 mt-1 font-mono text-sm">{report.id}</p>
+                                    <p className="text-gray-600 mt-1 font-mono text-sm">{report?.id ?? '-'}</p>
                                 </div>
 
                                 <div>
                                     <label className="text-sm font-medium text-gray-500">วันที่สร้าง</label>
-                                    <p className="text-gray-800 mt-1">{formatDate(report.created_at)}</p>
+                                    <p className="text-gray-800 mt-1">
+                                        {report?.created_at ? formatDate(report.created_at) : '-'}
+                                    </p>
                                 </div>
                             </div>
 
@@ -105,8 +113,8 @@ export default async function DetailReport({
                                 <div className="bg-gray-100 rounded-lg text-center">
                                     <div className="relative w-full h-64 overflow-hidden rounded-md mb-2">
                                         <Image
-                                            src={`${process.env.NEXT_PUBLIC_API_BASE_URL}/report/${report.id}/image`}
-                                            alt={report.detail || 'report image'}
+                                            src={`${process.env.NEXT_PUBLIC_API_BASE_URL}/report/image/${report?.id}`}
+                                            alt={report?.detail || 'report image'}
                                             fill
                                             className="object-cover"
                                         />
@@ -123,29 +131,32 @@ export default async function DetailReport({
                             </h2>
 
                             <div className="space-y-6">
-                                {report.histories.map((history, index) => {
-                                    const fromLabel = history.from?.label
-                                    const toLabel = history.to?.label
-                                    const isDone = latestFinished ? true : index > 0;
+                                {report?.histories?.map((history, index) => {
+                                    const fromLabel = history?.from?.label
+                                    const toLabel = history?.to?.label
+                                    const isDone = latestFinished ? true : index > 0
+
+                                    const fromCode = (history?.from?.code ?? 'pending') as StatusCode
+                                    const toCode = (history?.to?.code ?? 'pending') as StatusCode
+                                    const fromStyle = getStatusStyle(fromCode)
+                                    const toStyle = getStatusStyle(toCode)
 
                                     return (
-                                        <div key={history.id ?? index} className="relative">
+                                        <div key={history?.id ?? index} className="relative">
                                             {/* Timeline Line */}
-                                            {index < report.histories.length - 1 && (
+                                            {index < (report?.histories?.length ?? 0) - 1 && (
                                                 <div className="absolute left-6 top-12 w-0.5 h-16 bg-gray-200" />
                                             )}
 
                                             <div className="flex items-start">
                                                 {/* Timeline Icon */}
                                                 <div
-                                                    className={`flex-shrink-0 w-12 h-12 rounded-full border-2 flex items-center justify-center ${isDone
-                                                        ? "bg-green-100 border-green-500"
-                                                        : "bg-orange-100 border-orange-500"
+                                                    className={`flex-shrink-0 w-12 h-12 rounded-full border-2 flex items-center justify-center ${isDone ? 'bg-green-100 border-green-500' : 'bg-orange-100 border-orange-500'
                                                         }`}
                                                 >
                                                     {getStatusIconFromDB({
-                                                        icon: history.to.icon,
-                                                        className: "w-5 h-5",
+                                                        icon: history?.to?.icon ?? toStyle.icon,
+                                                        className: 'w-5 h-5',
                                                         done: isDone,
                                                     })}
                                                 </div>
@@ -158,7 +169,7 @@ export default async function DetailReport({
                                                                 {fromLabel && (
                                                                     <>
                                                                         <span
-                                                                            className={`px-2 py-1 rounded text-xs text-white ${history.from.badge_ring} ${history.from.gradient}`}
+                                                                            className={`px-2 py-1 rounded text-xs text-white ${fromStyle.badge_ring} ${fromStyle.gradient}`}
                                                                         >
                                                                             {fromLabel}
                                                                         </span>
@@ -166,45 +177,45 @@ export default async function DetailReport({
                                                                     </>
                                                                 )}
                                                                 <span
-                                                                    className={`px-2 py-1 rounded text-xs text-white ${history.to.badge_ring} ${history.to.gradient}`}
+                                                                    className={`px-2 py-1 rounded text-xs text-white ${toStyle.badge_ring} ${toStyle.gradient}`}
                                                                 >
                                                                     {toLabel}
                                                                 </span>
                                                             </div>
                                                         </div>
 
-                                                        {history.note && (
+                                                        {history?.note && (
                                                             <p className="text-gray-800 font-medium mb-1">
                                                                 {history.note}
                                                             </p>
                                                         )}
 
                                                         <p className="text-sm text-gray-500">
-                                                            {formatDate(history.changed_at)}
+                                                            {history?.changed_at ? formatDate(history.changed_at) : '-'}
                                                         </p>
 
                                                         {/* Images */}
-                                                        {(history.img_before || history.img_after) && (
+                                                        {(history?.img_before || history?.img_after) && (
                                                             <div className="mt-3 flex gap-2">
-                                                                {history.img_before && (
+                                                                {history?.img_before && (
                                                                     <div className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded">
                                                                         <div className="mb-1">ก่อน</div>
                                                                         <Image
                                                                             width={300}
                                                                             height={300}
-                                                                            src={`${process.env.NEXT_PUBLIC_API_BASE_URL}/report/${report.id}/image?history_id=${history.id}&side=before`}
+                                                                            src={`${process.env.NEXT_PUBLIC_API_BASE_URL}/report/image/${report?.id}?history_id=${history?.id}&side=before`}
                                                                             alt={`ก่อน - ${toLabel ?? 'ภาพ'}`}
                                                                             className="rounded"
                                                                         />
                                                                     </div>
                                                                 )}
-                                                                {history.img_after && (
+                                                                {history?.img_after && (
                                                                     <div className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded">
                                                                         <div className="mb-1">หลัง</div>
                                                                         <Image
                                                                             width={300}
                                                                             height={300}
-                                                                            src={`${process.env.NEXT_PUBLIC_API_BASE_URL}/report/${report.id}/image?history_id=${history.id}&side=after`}
+                                                                            src={`${process.env.NEXT_PUBLIC_API_BASE_URL}/report/image/${report?.id}?history_id=${history?.id}&side=after`}
                                                                             alt={`หลัง - ${toLabel ?? 'ภาพ'}`}
                                                                             className="rounded"
                                                                         />
@@ -235,7 +246,7 @@ export default async function DetailReport({
                                 <div>
                                     <label className="text-sm font-medium text-gray-500">ที่อยู่</label>
                                     <p className="text-gray-800 mt-1 text-sm">
-                                        {report.address.address_full}
+                                        {report?.address?.address_full ?? '-'}
                                     </p>
                                 </div>
 
@@ -248,7 +259,7 @@ export default async function DetailReport({
                                         style={{ border: 0 }}
                                         loading="lazy"
                                         allowFullScreen
-                                        src={`https://www.google.com/maps?q=${report.address.lat},${report.address.lng}&z=17&output=embed`}
+                                        src={`https://www.google.com/maps?q=${report?.address?.lat ?? 0},${report?.address?.lng ?? 0}&z=17&output=embed`}
                                     />
                                 </div>
                             </div>

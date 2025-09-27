@@ -17,11 +17,6 @@ model Status {
   id         Int     @id @db.SmallInt
   code       String  @unique
   label      String
-  gradient   String?
-  badge_ring String?
-  badge_bg   String?
-  icon       String?
-  text_color String?
   sort_order Int     @default(0) @map("sort_order") @db.SmallInt
   is_active  Boolean @default(true) @map("is_active")
 
@@ -39,9 +34,9 @@ model Report {
   user_agent String                @default("") @map("user_agent") @db.Text
   created_at DateTime              @default(now()) @map("created_at") @db.Timestamptz
   histories  ReportStatusHistory[]
-
-  address_id String        @unique @db.Uuid
-  address    ReportAddress @relation(fields: [address_id], references: [id])
+  code       String
+  address_id String                @unique @db.Uuid
+  address    ReportAddress         @relation(fields: [address_id], references: [id])
 
   category_id Int
   category    Category @relation(fields: [category_id], references: [id])

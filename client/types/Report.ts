@@ -4,6 +4,7 @@ export interface Report {
     id: number;
     detail: string;
     img: string;
+    code: string;
     category: {
         name: string;
     };
