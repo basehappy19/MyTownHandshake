@@ -44,6 +44,15 @@ async function safeMove(src: string, dest: string) {
     }
 }
 
+function generateCode(length = 6) {
+    const chars =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    let result = "";
+    for (let i = 0; i < length; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+}
 // ---------- NEW helpers for naming ----------
 function formatDDMMYYYY(d: Date) {
     const dd = String(d.getDate()).padStart(2, "0");
@@ -199,6 +208,7 @@ const insertReportRoute: FastifyPluginAsync = async (fastify) => {
             if (typeof lat !== "number") errs.push("lat");
             if (typeof lng !== "number") errs.push("lng");
             if (!detail) errs.push("detail");
+            if (!user_agent) errs.push("detail");
             if (!fileReceived) errs.push("img");
             if (errs.length) {
                 if (tempFilePath) await unlink(tempFilePath).catch(() => {});
@@ -262,10 +272,22 @@ const insertReportRoute: FastifyPluginAsync = async (fastify) => {
                         select: { id: true },
                     });
 
+                    let code: string;
+                    let exists: boolean;
+                    do {
+                        code = generateCode();
+                        const check = await tx.report.findFirst({
+                            where: { code }, 
+                            select: { id: true },
+                        });
+                        exists = !!check;
+                    } while (exists);
+
                     const created = await tx.report.create({
                         data: {
                             detail: detail!,
                             img: "",
+                            code,
                             address_id: address.id,
                             category_id: 1,
                             user_agent: user_agent ?? "",
@@ -277,6 +299,7 @@ const insertReportRoute: FastifyPluginAsync = async (fastify) => {
                     return { reportId: created.id, addressId: address.id };
                 }
             );
+
             createdReportId = reportId;
 
             // ── เตรียมโฟลเดอร์ปลายทางแบบเดียวกับ updateStatusRoute ──
@@ -351,7 +374,6 @@ const insertReportRoute: FastifyPluginAsync = async (fastify) => {
             return reply.code(201).send({
                 ok: true,
                 id: reportId,
-                address_id: addressId,
             });
         } catch (err) {
             req.log.error({ err }, "insertReportRoute failed");

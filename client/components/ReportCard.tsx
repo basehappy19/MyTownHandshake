@@ -1,4 +1,5 @@
 import { Report } from '@/types/Report'
+import { CheckCircle2, Clock, Code } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import React from 'react'
@@ -40,26 +41,27 @@ const ReportCard = ({ report }: { report: Report }) => {
                     <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(report.histories[0]?.to.label || 'unknown')}`}>
                         {report.histories[0]?.to.label || 'ไม่ทราบสถานะ'}
                     </span>
-                </div>                
+                </div>
             </div>
 
             {/* Content Section */}
             <div className="p-6 space-y-4">
                 {/* Date and Time Info */}
                 <div className="space-y-2">
-                    <div className="flex items-center text-sm text-green-700">
-                        <svg className="w-4 h-4 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
+                    <div className="flex items-center text-sm text-black">
+                        <Clock className='w-4 h-4 mr-2 text-black' />
                         <span className="font-medium">แจ้งเมื่อ:</span>
-                        <span className="ml-2">{formatThaiDate(report.created_at)}</span>
+                        <span className="ml-1">{formatThaiDate(report.created_at)}</span>
+                    </div>
+                    <div className="flex items-center text-sm text-black">
+                        <Code className='w-4 h-4 mr-2 text-black' />
+                        <span className="font-medium">รหัสเรื่อง:</span>
+                        <span className="ml-1">{report.code}</span>
                     </div>
 
                     {report.histories[0] && (
-                        <div className="flex items-center text-sm text-green-600">
-                            <svg className="w-4 h-4 mr-2 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
+                        <div className="flex items-center text-sm text-black">
+                            <CheckCircle2 className='w-4 h-4 mr-2 text-black' />
                             <span>อัปเดต {timeAgo(report.histories[0].changed_at)}</span>
                         </div>
                     )}
@@ -68,11 +70,11 @@ const ReportCard = ({ report }: { report: Report }) => {
                 {/* Location */}
                 <div className="bg-green-50 rounded-xl p-3 border border-green-100">
                     <div className="flex items-start">
-                        <svg className="w-4 h-4 mt-0.5 mr-2 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4 mt-0.5 mr-2 text-black flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                         </svg>
-                        <span className="text-sm text-green-800 leading-relaxed">
+                        <span className="text-sm text-black leading-relaxed">
                             {report.address.address_full}
                         </span>
                     </div>
@@ -80,28 +82,28 @@ const ReportCard = ({ report }: { report: Report }) => {
 
                 {/* Problem Details */}
                 <div className="space-y-3">
-                    <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl p-4 border border-emerald-100">
+                    <div className="bg-green-50 rounded-xl p-3 border border-green-100">
                         <div className="flex items-start">
-                            <svg className="w-4 h-4 mt-0.5 mr-2 text-emerald-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-4 h-4 mt-0.5 mr-2 text-black flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
                             </svg>
                             <div className="flex-1">
-                                <h4 className="text-sm font-medium text-emerald-800 mb-1">รายละเอียดปัญหา</h4>
-                                <p className="text-sm text-emerald-700 leading-relaxed">
+                                <h4 className="text-sm font-medium text-black mb-1">รายละเอียดปัญหา</h4>
+                                <p className="text-sm text-black leading-relaxed">
                                     {report.detail || "ไม่ได้ระบุรายละเอียด"}
                                 </p>
                             </div>
                         </div>
                     </div>
 
-                    <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4 border border-green-100">
+                    <div className="bg-green-50 rounded-xl p-3 border border-green-100">
                         <div className="flex items-center">
-                            <svg className="w-4 h-4 mr-2 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-4 h-4 mr-2 text-black flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                             </svg>
                             <div className="flex-1">
-                                <span className="text-sm font-medium text-green-800">ผู้รับผิดชอบ: </span>
-                                <span className="text-sm text-green-700">
+                                <span className="text-sm font-medium text-black">ผู้รับผิดชอบ: </span>
+                                <span className="text-sm text-black">
                                     {report.responsible || "ยังไม่ได้มอบหมาย"}
                                 </span>
                             </div>

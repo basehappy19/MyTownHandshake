@@ -1,19 +1,53 @@
 'use client'
-import { useState } from 'react'
+
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { FileText, Send, AlertCircle } from 'lucide-react'
 import ImageUpload from './ImageUpload'
 import LocationGPS from './LocationGPS'
 import { submitOfficialReport } from '@/action/report'
 
+/** ---------- Types ---------- */
 type FormValues = {
     detail: string
     lat?: number
     lng?: number
     photo: File | null
+    user_agent?: string
 }
 
-export default function OfficialReportForm() {
+/** ชนิด User-Agent Client Hints (รองรับ TS/DOM บางเวอร์ชันที่ยังไม่มี) */
+type UADataBrand = { brand: string; version: string }
+interface NavigatorUAData {
+    brands: UADataBrand[]
+    mobile?: boolean
+    platform: string
+    getHighEntropyValues: (
+        hints: ReadonlyArray<
+            | 'architecture'
+            | 'model'
+            | 'platform'
+            | 'platformVersion'
+            | 'uaFullVersion'
+            | 'bitness'
+            | 'fullVersionList'
+        >
+    ) => Promise<{
+        architecture?: string
+        model?: string
+        platform?: string
+        platformVersion?: string
+        uaFullVersion?: string
+        bitness?: string
+        fullVersionList?: UADataBrand[]
+    }>
+}
+
+/** ให้ navigator รองรับ field userAgentData แบบ optional โดยไม่ใช้ any */
+type NavigatorWithUA = Navigator & { userAgentData?: NavigatorUAData }
+
+/** ---------- Component ---------- */
+export default function FormReport() {
     const {
         register,
         handleSubmit,
@@ -24,10 +58,53 @@ export default function OfficialReportForm() {
         watch,
         reset,
     } = useForm<FormValues>({
-        defaultValues: { detail: '', lat: undefined, lng: undefined, photo: null },
+        defaultValues: { detail: '', lat: undefined, lng: undefined, photo: null, user_agent: '' },
         mode: 'onBlur',
         reValidateMode: 'onBlur',
     })
+
+    // เก็บ UA จากฝั่ง client (ไม่มี any)
+    useEffect(() => {
+        const setUA = async () => {
+            try {
+                const nav = (navigator as NavigatorWithUA)
+                let ua = nav.userAgent || ''
+
+                const uad = nav.userAgentData
+                if (uad?.getHighEntropyValues) {
+                    const hi = await uad.getHighEntropyValues([
+                        'platform',
+                        'platformVersion',
+                        'architecture',
+                        'model',
+                        'uaFullVersion',
+                        'bitness',
+                        'fullVersionList',
+                    ])
+
+                    const brandsArr: UADataBrand[] = uad.brands ?? []
+                    const brands = brandsArr.map((b) => `${b.brand}/${b.version}`).join(', ')
+
+                    ua = [
+                        ua,
+                        brands ? ` | brands: ${brands}` : '',
+                        hi.platform ? ` | platform: ${hi.platform} ${hi.platformVersion ?? ''}` : '',
+                        hi.architecture ? ` | arch: ${hi.architecture}` : '',
+                        hi.model ? ` | model: ${hi.model}` : '',
+                        hi.uaFullVersion ? ` | full: ${hi.uaFullVersion}` : '',
+                        hi.bitness ? ` | bits: ${hi.bitness}` : '',
+                    ]
+                        .filter(Boolean)
+                        .join('')
+                }
+
+                setValue('user_agent', ua, { shouldValidate: false })
+            } catch {
+                // ignore
+            }
+        }
+        void setUA()
+    }, [setValue])
 
     const detail = watch('detail', '')
 
@@ -41,7 +118,9 @@ export default function OfficialReportForm() {
         if (loc?.lng != null) setValue('lng', loc.lng, { shouldValidate: true })
         if (loc?.lat != null || loc?.lng != null) clearErrors(['lat', 'lng'])
     }
+
     const [uploadKey, setUploadKey] = useState(0)
+
     const onSubmit = async (data: FormValues) => {
         if (!data.photo) {
             setError('photo', { type: 'manual', message: 'กรุณาแนบรูป 1 รูป' })
@@ -53,6 +132,7 @@ export default function OfficialReportForm() {
         if (data.lat != null) fd.append('lat', String(data.lat))
         if (data.lng != null) fd.append('lng', String(data.lng))
         fd.append('img', data.photo)
+        if (data.user_agent) fd.append('user_agent', data.user_agent)
 
         const res = await submitOfficialReport(fd)
         if (!res.ok) {
@@ -82,6 +162,9 @@ export default function OfficialReportForm() {
                 </div>
 
                 <form onSubmit={handleSubmit(onSubmit)} className="p-8 lg:p-12 space-y-8">
+                    {/* เก็บ UA ไว้แบบ hidden */}
+                    <input type="hidden" {...register('user_agent')} />
+
                     <div className="space-y-2">
                         <label htmlFor="detail" className="flex items-center text-sm font-bold text-gray-700">
                             <FileText className="h-4 w-4 mr-2 text-green-500" />
@@ -108,15 +191,10 @@ export default function OfficialReportForm() {
                     </div>
 
                     <div className="space-y-2">
-                        <ImageUpload
-                            key={uploadKey}
-                            onChange={(files) => handlePhoto(files[0] ?? null)}
-                        />
-
+                        <ImageUpload key={uploadKey} onChange={(files) => handlePhoto(files[0] ?? null)} />
                         {errors.photo && <p className="text-xs text-red-500">{errors.photo.message}</p>}
                     </div>
 
-                    {/* ตำแหน่ง */}
                     <div className="space-y-1">
                         <LocationGPS onChange={handleLocChange} />
                         {(errors.lat || errors.lng) && (
@@ -126,7 +204,6 @@ export default function OfficialReportForm() {
                         )}
                     </div>
 
-                    {/* ปุ่มส่ง */}
                     <div className="pt-8 border-t-2 border-gray-200">
                         <button
                             type="submit"

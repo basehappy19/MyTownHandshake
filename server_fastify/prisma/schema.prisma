@@ -19,6 +19,7 @@ model Status {
   label      String
   sort_order Int     @default(0) @map("sort_order") @db.SmallInt
   is_active  Boolean @default(true) @map("is_active")
+  icon       String?
 
   from_histories ReportStatusHistory[] @relation("FromStatus")
   to_histories   ReportStatusHistory[] @relation("ToStatus")
@@ -30,7 +31,7 @@ model Report {
   id         String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   detail     String                @db.Text
   img        String                @db.Text
-  device_id  String                @default("") @db.Text
+  device_id  String?               @default("") @db.Text
   user_agent String                @default("") @map("user_agent") @db.Text
   created_at DateTime              @default(now()) @map("created_at") @db.Timestamptz
   histories  ReportStatusHistory[]

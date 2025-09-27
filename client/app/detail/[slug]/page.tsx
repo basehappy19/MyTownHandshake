@@ -25,7 +25,7 @@ export default async function DetailReport({
     // ใช้ style จาก code (fallback เป็น 'pending')
     const latestCode = (latest?.to?.code ?? 'pending') as StatusCode
     const latestStyle = getStatusStyle(latestCode)
-
+    
     return (
         <div className="min-h-screen bg-gray-50">
             {/* Header */}
@@ -96,7 +96,7 @@ export default async function DetailReport({
 
                                 <div>
                                     <label className="text-sm font-medium text-gray-500">รหัสเรื่อง</label>
-                                    <p className="text-gray-600 mt-1 font-mono text-sm">{report?.id ?? '-'}</p>
+                                    <p className="text-gray-600 mt-1 font-mono text-sm">{report?.code ?? '-'}</p>
                                 </div>
 
                                 <div>

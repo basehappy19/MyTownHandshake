@@ -7,11 +7,7 @@ interface StatusRow {
     sort_order: number;
     is_active: boolean;
     count: bigint;
-    gradient: string | null;
-    badge_ring: string | null;
-    badge_bg: string | null;
     icon: string | null;
-    text_color: string | null;
 }
 
 interface Item {
@@ -20,11 +16,7 @@ interface Item {
     label: string;
     count: number;
     percent: number;
-    gradient: string | null;
-    badge_ring: string | null;
-    badge_bg: string | null;
     icon: string | null;
-    text_color: string | null;
 }
 
 const getStatisticsStatuses: FastifyPluginAsync = async (fastify) => {
@@ -43,11 +35,7 @@ const getStatisticsStatuses: FastifyPluginAsync = async (fastify) => {
                s.label,
                s.sort_order,
                s.is_active,
-               s.gradient,
-               s.badge_ring,
-               s.badge_bg,
                s.icon,
-               s.text_color,
                COALESCE(c.cnt, 0)::bigint AS count
         FROM "statuses" s
         LEFT JOIN (
@@ -57,7 +45,7 @@ const getStatisticsStatuses: FastifyPluginAsync = async (fastify) => {
         ) c ON c.status_id = s.id
       )
       SELECT id, code, label, sort_order, is_active,
-             gradient, badge_ring, badge_bg, icon, text_color,
+             icon,
              count
       FROM counts
       ORDER BY sort_order, id
@@ -71,11 +59,7 @@ const getStatisticsStatuses: FastifyPluginAsync = async (fastify) => {
             sort_order: r.sort_order,
             is_active: r.is_active,
             count: Number(r.count),
-            gradient: r.gradient,
-            badge_ring: r.badge_ring,
-            badge_bg: r.badge_bg,
             icon: r.icon,
-            text_color: r.text_color,
         }));
 
         // ใส่ชนิดให้ acc และ r ใน reduce
@@ -93,11 +77,7 @@ const getStatisticsStatuses: FastifyPluginAsync = async (fastify) => {
                 label: r.label,
                 count: r.count,
                 percent,
-                gradient: r.gradient,
-                badge_ring: r.badge_ring,
-                badge_bg: r.badge_bg,
                 icon: r.icon,
-                text_color: r.text_color,
             };
         });
 
@@ -107,11 +87,7 @@ const getStatisticsStatuses: FastifyPluginAsync = async (fastify) => {
             label: "ทั้งหมด",
             count: total,
             percent: total > 0 ? 100 : 0,
-            gradient: null,
-            badge_ring: null,
-            badge_bg: null,
             icon: null,
-            text_color: null,
         };
 
         return res.send({

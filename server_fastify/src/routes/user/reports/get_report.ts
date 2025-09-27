@@ -26,6 +26,7 @@ const getReportRoute: FastifyPluginAsync = async (fastify) => {
             ? {
                   OR: [
                       { detail: { contains: qTrim, mode: "insensitive" } },
+                      { code: { contains: qTrim, mode: "insensitive" } },
                       {
                           address: {
                               OR: [
@@ -135,6 +136,7 @@ const getReportRoute: FastifyPluginAsync = async (fastify) => {
                         id: true,
                         detail: true,
                         img: true,
+                        code: true,
                         category: { select: { name: true } },
                         histories: {
                             orderBy: { changed_at: "desc" },
@@ -198,6 +200,7 @@ const getReportRoute: FastifyPluginAsync = async (fastify) => {
                 detail: true,
                 img: true,
                 category: { select: { name: true } },
+                code: true,
                 histories: {
                     orderBy: { changed_at: "desc" },
                     select: {

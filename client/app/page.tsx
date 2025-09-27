@@ -38,18 +38,6 @@ export default async function Home(props: { searchParams: Promise<{ [key: string
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50">
       <Header />
-      <div className="bg-gradient-to-r from-green-600 to-emerald-600 shadow-xl">
-        <div className="mx-auto max-w-7xl px-6 py-12">
-          <div className="text-center">
-            <h1 className="text-4xl font-bold text-white mb-2">
-              ระบบรายงานปัญหา
-            </h1>
-            <p className="text-green-100 text-lg">
-              ติดตามสถานะรายงานปัญหาทั้งหมด
-            </p>
-          </div>
-        </div>
-      </div>
 
       {/* Main Content */}
       <div className="mx-auto max-w-7xl px-6 py-8">
