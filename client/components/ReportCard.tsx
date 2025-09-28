@@ -122,7 +122,7 @@ const ReportCard = ({ report }: { report: Report }) => {
     )
 }
 
-function timeAgo(dateString: string): string {
+export function timeAgo(dateString: string): string {
     const date = new Date(dateString)
     const now = new Date()
     const diff = Math.floor((now.getTime() - date.getTime()) / 1000)
@@ -143,7 +143,7 @@ function timeAgo(dateString: string): string {
     return `${years} ปีที่แล้ว`
 }
 
-function formatThaiDate(dateString: string): string {
+export function formatThaiDate(dateString: string): string {
     const date = new Date(dateString)
 
     const buddhistYear = date.getFullYear() + 543

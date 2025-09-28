@@ -152,7 +152,7 @@ export default function FormReport() {
                 <div className="bg-green-600 px-8 py-8">
                     <div className="flex items-center justify-between">
                         <div>
-                            <h2 className="text-2xl font-bold text-white">แบบฟอร์มแจ้งเหตุการณ์</h2>
+                            <h2 className="text-2xl font-bold text-white">แบบฟอร์มแจ้งปัญหา</h2>
                             <p className="text-green-100 text-sm mt-2">กรุณากรอกข้อมูลให้ครบถ้วนและแนบหลักฐานประกอบ</p>
                         </div>
                         <div className="hidden md:block">

@@ -9,15 +9,25 @@ export interface Report {
         name: string;
     };
     histories: History[];
+    last_finished_history?: History;
     responsible: string;
+    duration?: {
+        milliseconds: number;
+        minutes: number;
+        hours: number;
+        days: number;
+        weeks: number;
+        months: number;
+        years: number;
+    };
     address: Address;
     created_at: string;
 }
 
 interface History {
     id: number;
-    from: statusRaw['items'][number];
-    to: statusRaw['items'][number];
+    from: statusRaw["items"][number];
+    to: statusRaw["items"][number];
     note: string;
     changed_at: string;
     img_before: string;
