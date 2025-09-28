@@ -1,27 +1,33 @@
 import { statusRaw } from "@/app/page";
 
 export interface Report {
-    id: number;
+    id: string;
     detail: string;
     img: string;
     code: string;
     category: {
         name: string;
     };
+    rate: string
     histories: History[];
-    last_finished_history?: History;
-    responsible: string;
-    duration?: {
-        milliseconds: number;
-        minutes: number;
-        hours: number;
-        days: number;
-        weeks: number;
-        months: number;
-        years: number;
+    last_history?: History;
+    responsible: {
+        display_name: string
     };
+    finished_at?: string;
+    duration?: Duration;
     address: Address;
     created_at: string;
+}
+
+export interface Duration {
+    milliseconds: number;
+    minutes: number;
+    hours: number;
+    days: number;
+    weeks: number;
+    months: number;
+    years: number;
 }
 
 interface History {

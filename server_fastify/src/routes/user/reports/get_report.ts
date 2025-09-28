@@ -136,6 +136,7 @@ const getReportRoute: FastifyPluginAsync = async (fastify) => {
                         id: true,
                         detail: true,
                         img: true,
+                        rate: true,
                         code: true,
                         category: { select: { name: true } },
                         histories: {
@@ -320,6 +321,7 @@ const getReportRoute: FastifyPluginAsync = async (fastify) => {
               }
             : undefined;
 
+        // คงไว้: รายการนี้ต้อง "เคยปิดงานอย่างน้อยหนึ่งครั้ง"
         const finishedFilter: Prisma.ReportWhereInput = {
             histories: { some: { finished: true } },
         };
@@ -340,14 +342,13 @@ const getReportRoute: FastifyPluginAsync = async (fastify) => {
                         : 1;
                 const skip = (p - 1) * ps;
 
-                // ดึงเฉพาะ history ที่ finished ล่าสุด 1 รายการ/รายงาน
                 const reports = await tx.report.findMany({
                     where,
                     skip,
                     take: ps,
-                    orderBy: { created_at: "desc" },
                     select: {
                         id: true,
+                        rate: true,
                         detail: true,
                         img: true,
                         code: true,
@@ -373,12 +374,7 @@ const getReportRoute: FastifyPluginAsync = async (fastify) => {
                             },
                         },
                         histories: {
-                            where: { finished: true },
-                            orderBy: [
-                                // ใช้ finished_at ก่อน ถ้าเท่ากันใช้ changed_at
-                                { finished_at: "desc" },
-                                { changed_at: "desc" },
-                            ],
+                            orderBy: { changed_at: "desc" },
                             take: 1,
                             select: {
                                 id: true,
@@ -402,12 +398,15 @@ const getReportRoute: FastifyPluginAsync = async (fastify) => {
         const totalPages = Math.ceil(total / ps);
         const rawP = Number(page) || 1;
         const p = totalPages > 0 ? Math.min(totalPages, Math.max(1, rawP)) : 1;
+
         type FinishedReport = Prisma.PromiseReturnType<
             typeof fastify.prisma.report.findMany
         >[number];
+
         const items = rows.map((r: FinishedReport) => {
             const h = r.histories[0];
-            const doneAt = h?.finished_at ?? h?.changed_at ?? r.created_at;
+            const doneAt = h.changed_at;
+
             const durations = buildDurations(
                 new Date(r.created_at),
                 new Date(doneAt)
@@ -417,17 +416,16 @@ const getReportRoute: FastifyPluginAsync = async (fastify) => {
                 id: r.id,
                 detail: r.detail,
                 img: r.img,
+                rate: r.rate,
                 code: r.code,
                 category: r.category,
                 responsible: r.responsible,
                 address: r.address,
                 created_at: r.created_at,
                 finished: true,
-                finished_at: doneAt,
-                // ส่งระยะเวลาหลายหน่วยตามที่ขอ
+                finished_at: r.histories[0]?.changed_at ?? null,
                 duration: durations,
-                // แนบ history ตัวที่ปิดงานเพื่ออ้างอิง
-                last_finished_history: h ?? null,
+                last_history: h ?? null,
             };
         });
 
@@ -449,6 +447,7 @@ const getReportRoute: FastifyPluginAsync = async (fastify) => {
                 id: true,
                 detail: true,
                 img: true,
+                rate: true,
                 category: { select: { name: true } },
                 code: true,
                 histories: {
@@ -492,8 +491,22 @@ const getReportRoute: FastifyPluginAsync = async (fastify) => {
                 .code(404)
                 .send({ ok: false, error: "Report not found" });
         }
+        const h = report.histories[0];
+        const doneAt = h.changed_at;
+        const durations = buildDurations(
+            new Date(report.created_at),
+            new Date(doneAt)
+        );
 
-        return reply.send({ ok: true, item: report });
+        return reply.send({
+            ok: true,
+            item: {
+                ...report,
+                finished_at: doneAt,
+                duration: durations,
+                last_history: h ?? null,
+            },
+        });
     });
 };
 

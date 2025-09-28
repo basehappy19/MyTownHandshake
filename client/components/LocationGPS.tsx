@@ -58,7 +58,7 @@ export default function LocationGPS({ onChange, auto = true }: Props) {
         <div className="space-y-6">
             <label className="flex items-center text-sm font-bold text-gray-700">
                 <MapPin className="h-4 w-4 mr-2 text-red-500" />
-                ตำแหน่งที่เกิดเหตุ
+                ตำแหน่งที่เกิดปัญหา
             </label>
 
             <div className="bg-gradient-to-br from-gray-50 to-blue-50 rounded-2xl border-2 border-gray-200">
@@ -66,7 +66,7 @@ export default function LocationGPS({ onChange, auto = true }: Props) {
                     <div className="space-y-4">
                         <div className="rounded-2xl overflow-hidden shadow-xl border-4 border-white">
                             <iframe
-                                title="แผนที่ตำแหน่งที่เกิดเหตุ"
+                                title="แผนที่ตำแหน่งที่เกิดปัญหา"
                                 width="100%"
                                 height="400"
                                 style={{ border: 0 }}

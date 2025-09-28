@@ -42,8 +42,21 @@ export default async function Home(props: { searchParams: Promise<{ [key: string
       <Header />
 
       {/* Main Content */}
-      <div className="mx-auto max-w-7xl px-6 py-8">
+      <div className="container mx-auto px-4 py-6">
         <section>
+          <span className="
+    inline-block 
+    text-green-800 
+    font-semibold 
+    mb-3
+">
+            ภูเขียว รับแจ้งไปทั้งหมด
+            <span className="mx-1 text-emerald-600 font-bold">
+              {reports.items.length}
+            </span>
+            เรื่อง
+          </span>
+
           {reportsFinished.items && reportsFinished.items.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {reportsFinished.items.map((r) => (
@@ -69,7 +82,7 @@ export default async function Home(props: { searchParams: Promise<{ [key: string
           )}
         </section>
         {/* Summary Stats */}
-        <div className="mb-8">
+        <div className="my-8">
           <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-green-100 p-6">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center space-x-2">

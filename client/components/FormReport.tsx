@@ -146,7 +146,7 @@ export default function FormReport() {
     }
 
     return (
-        <main className="max-w-6xl mx-auto px-4 py-8">
+        <main className="container mx-auto px-4 py-6">
             <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden">
                 {/* Header */}
                 <div className="bg-green-600 px-8 py-8">
@@ -168,7 +168,7 @@ export default function FormReport() {
                     <div className="space-y-2">
                         <label htmlFor="detail" className="flex items-center text-sm font-bold text-gray-700">
                             <FileText className="h-4 w-4 mr-2 text-green-500" />
-                            รายละเอียดเหตุการณ์ <span className="text-red-500 ml-1">*</span>
+                            รายละเอียดปัญหา <span className="text-red-500 ml-1">*</span>
                         </label>
                         <textarea
                             id="detail"
@@ -182,7 +182,7 @@ export default function FormReport() {
                             })}
                             className={`w-full px-4 py-4 border-2 rounded-xl focus:ring-4 transition-all duration-200 bg-gray-50 hover:bg-white resize-none
                 ${errors.detail ? 'border-red-400 focus:ring-red-200' : 'border-gray-300 focus:ring-green-500 focus:border-green-500'}`}
-                            placeholder="กรุณาอธิบายรายละเอียดเหตุการณ์ที่เกิดขึ้น เวลา สถานที่ และผู้เกี่ยวข้อง..."
+                            placeholder="กรุณาอธิบายรายละเอียดปัญหาที่เกิดขึ้น สถานที่ และผู้เกี่ยวข้อง..."
                         />
                         <div className="flex items-center justify-between text-xs">
                             <span className="text-red-500">{errors.detail?.message}</span>
