@@ -7,9 +7,6 @@ export const getStatuses = async () => {
             headers: {
                 "Content-Type": "application/json"
             },
-            next: {
-                revalidate: 0
-            }
         })
 
         if (!res.ok) {

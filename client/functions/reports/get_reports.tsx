@@ -11,7 +11,6 @@ export const getReports = async (search?: string) => {
         const res = await fetch(url, {
             method: "GET",
             headers: { "Content-Type": "application/json" },
-            next: { revalidate: 0 },
         });
 
         if (!res.ok) {
@@ -37,7 +36,6 @@ export const getReportsFinished = async (search?: string) => {
         const res = await fetch(url, {
             method: "GET",
             headers: { "Content-Type": "application/json" },
-            next: { revalidate: 0 },
         });
 
         if (!res.ok) {
@@ -65,7 +63,6 @@ export const getReport = async (id?: string) => {
         const res = await fetch(url, {
             method: "GET",
             headers: { "Content-Type": "application/json" },
-            next: { revalidate: 0 },
         });
 
         if (!res.ok) {
