@@ -3,8 +3,14 @@ const nextConfig = {
     images: {
         remotePatterns: [
             {
-                hostname: "127.0.0.1", // Or "localhost"
-                port: "8080",
+                protocol: "http",
+                hostname: "127.0.0.1",
+                port: "8000",
+            },
+            {
+                protocol: "https",
+                hostname: "mytownhandshake.basehappy19.com",
+                pathname: "/api/**",
             },
         ],
     },
